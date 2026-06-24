@@ -9,6 +9,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -29,6 +30,8 @@ export default function App() {
   const analyze = async () => {
     if (!inputData.trim()) return;
     setLoading(true);
+    setErrorMsg(null);
+    setResult(null);
     try {
       const endpoint = activeTab === 'text' ? '/api/analyze/text' : '/api/analyze/url';
       const body = activeTab === 'text' ? { text: inputData } : { url: inputData };
@@ -38,10 +41,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+      
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.statusText}`);
+      }
+      
       const data = await res.json();
       setResult(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      setErrorMsg("Failed to connect to the backend server. Please make sure the FastAPI server is running on port 8000.");
     }
     setLoading(false);
   };
@@ -101,6 +110,13 @@ export default function App() {
                 {loading ? <Activity className="animate-spin" /> : <Search />}
                 {loading ? 'Analyzing with AI...' : 'Verify Content'}
               </button>
+              
+              {errorMsg && (
+                <div className="mt-4 p-4 bg-red-900/40 border border-red-500/50 rounded-xl text-red-200">
+                  <ShieldAlert className="inline mr-2" size={20} />
+                  {errorMsg}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
