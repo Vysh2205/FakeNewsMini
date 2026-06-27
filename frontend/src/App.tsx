@@ -59,7 +59,7 @@ export default function App() {
     if (!result) return;
     const doc = new jsPDF();
     doc.setFontSize(22);
-    doc.text('Bumblebee AI Analysis Report', 20, 20);
+    doc.text('Verity AI Analysis Report', 20, 20);
     doc.setFontSize(16);
     doc.text(`Status: ${result.is_fake ? 'Fake News Detected' : 'Reliable Source'}`, 20, 40);
     doc.text(`Confidence: ${(result.confidence * 100).toFixed(1)}%`, 20, 50);
@@ -67,7 +67,7 @@ export default function App() {
     doc.text('Explanation:', 20, 70);
     doc.text(result.explanation, 20, 80, { maxWidth: 170 });
     doc.text(`Keywords: ${result.keywords.join(', ')}`, 20, 110);
-    doc.save('bumblebee-report.pdf');
+    doc.save('verity-report.pdf');
   };
 
   return (
@@ -75,10 +75,10 @@ export default function App() {
       <div className="max-w-5xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            🐝 Next-Gen Verification
+            🛡️ Next-Gen Verification
           </div>
           <h1 className="text-6xl font-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
-            Bumblebee AI
+            Verity AI
           </h1>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">Ultra-fast AI-powered verification engine for detecting misinformation and validating claims.</p>
         </motion.div>
@@ -112,7 +112,7 @@ export default function App() {
               )}
               <button onClick={analyze} disabled={loading} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black py-3.5 rounded-xl flex items-center justify-center gap-2 font-black transition-all duration-300 shadow-lg shadow-amber-500/10 active:scale-[0.99] disabled:opacity-50">
                 {loading ? <Activity className="animate-spin" /> : <Search size={20} />}
-                {loading ? 'Analyzing with Bumblebee AI...' : 'Verify Content'}
+                {loading ? 'Analyzing with Verity AI...' : 'Verify Content'}
               </button>
               
               {errorMsg && (
@@ -140,8 +140,91 @@ export default function App() {
                 <p className="text-zinc-400 text-lg mt-1">Confidence Score: <span className={`font-mono font-bold ${result.is_fake ? 'text-red-400' : 'text-emerald-400'}`}>{(result.confidence * 100).toFixed(1)}%</span></p>
               </div>
             </div>
+
+            {/* Fake News Risk Meter */}
+            <div className="bg-zinc-950/70 border border-zinc-800/85 rounded-2xl p-6 mt-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-zinc-800/60 pb-4">
+                <span className="text-sm font-bold uppercase tracking-wider text-zinc-350 flex items-center gap-1.5">
+                  1. Fake News Risk Meter <span className="text-amber-400">⭐⭐⭐⭐⭐</span>
+                </span>
+                <span className="text-xs text-zinc-500">Multi-metric deep verification</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <span className="text-zinc-300 font-bold text-lg">Overall Risk:</span>
+                  <span className={`text-2xl font-black ${result.overall_risk >= 75 ? 'text-red-500' : result.overall_risk >= 35 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                    {result.overall_risk}%
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-900 rounded-full h-3.5 overflow-hidden border border-zinc-800">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${result.overall_risk >= 75 ? 'bg-gradient-to-r from-red-600 to-red-400' : result.overall_risk >= 35 ? 'bg-gradient-to-r from-amber-500 to-yellow-400' : 'bg-gradient-to-r from-emerald-600 to-emerald-400'}`} 
+                    style={{ width: `${result.overall_risk}%` }} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-2">
+                {/* Clickbait */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-zinc-400">Clickbait</span>
+                    <span className="text-zinc-300">{result.clickbait}%</span>
+                  </div>
+                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                    <div className="bg-amber-500 h-full rounded-lg" style={{ width: `${result.clickbait}%` }} />
+                  </div>
+                </div>
+
+                {/* Source Reliability */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-zinc-400">Source Reliability</span>
+                    <span className="text-zinc-300">{result.source_reliability}%</span>
+                  </div>
+                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                    <div className="bg-blue-500 h-full rounded-lg" style={{ width: `${result.source_reliability}%` }} />
+                  </div>
+                </div>
+
+                {/* Emotional Language */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-zinc-400">Emotional Language</span>
+                    <span className="text-zinc-300">{result.emotional_language}%</span>
+                  </div>
+                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                    <div className="bg-rose-500 h-full rounded-lg" style={{ width: `${result.emotional_language}%` }} />
+                  </div>
+                </div>
+
+                {/* Evidence Quality */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-zinc-400">Evidence Quality</span>
+                    <span className="text-zinc-300">{result.evidence_quality}%</span>
+                  </div>
+                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                    <div className="bg-emerald-500 h-full rounded-lg" style={{ width: `${result.evidence_quality}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-800/60 pt-4 flex justify-between items-center">
+                <span className="text-zinc-400 text-sm font-semibold">Final Verdict:</span>
+                <span className={`px-4 py-1.5 rounded-lg text-sm font-black border uppercase tracking-wider ${
+                  result.verdict === 'High Risk' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                  result.verdict === 'Moderate Risk' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                  'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                }`}>
+                  {result.verdict}
+                </span>
+              </div>
+            </div>
+
             <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-6 mt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2">Bumblebee Verdict Explanation</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2">Verity Verdict Explanation</h3>
               <p className="text-zinc-300 leading-relaxed">{result.explanation}</p>
             </div>
             <div className="mt-6">

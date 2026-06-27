@@ -7,7 +7,7 @@ from ml_service import analyze_text_with_ai
 from database import get_db
 import models
 
-app = FastAPI(title="Bumblebee AI Platform API")
+app = FastAPI(title="Verity AI Platform API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +28,12 @@ class AnalysisResponse(BaseModel):
     confidence: float
     keywords: list[str]
     explanation: str
+    overall_risk: int
+    clickbait: int
+    source_reliability: int
+    emotional_language: int
+    evidence_quality: int
+    verdict: str
 
 @app.post("/api/analyze/text", response_model=AnalysisResponse)
 def analyze_text(request: TextRequest, db: Session = Depends(get_db)):
