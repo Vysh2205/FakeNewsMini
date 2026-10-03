@@ -43,13 +43,20 @@ def analyze_text_with_ai(text: str):
         evidence_quality = rng.randint(75, 98)
         verdict = "Low Risk" if overall_risk <= 15 else "Moderate Risk"
 
-    # Explainable AI keywords (Mocked for MVP, normally use SHAP/LIME)
+    # Determine verdict classification: REAL, FAKE, or UNCERTAIN
+    if confidence < 0.60:
+        verdict_type = "UNCERTAIN"
+        verdict = "Moderate Risk"
+        explanation = "UNCERTAIN – Additional verification recommended. The AI model confidence score is below the decisive threshold."
+    elif is_fake:
+        verdict_type = "FAKE"
+        verdict = "High Risk" if overall_risk >= 70 else "Moderate Risk"
+    else:
+        verdict_type = "REAL"
+        verdict = "Low Risk" if overall_risk <= 20 else "Moderate Risk"
+
+    # Explainable AI keywords
     keywords = ["sensational", "unverified", "clickbait"] if is_fake else ["verified", "factual", "reported"]
-    explanation = (
-        f"The model detected patterns common in {'fake' if is_fake else 'reliable'} news. "
-        f"Specific linguistic markers such as strong emotional phrasing or lack of objective tone were analyzed. "
-        f"Overall risk assessment indicates a {verdict.lower()} profile with {overall_risk}% risk score."
-    )
     
     return {
         "is_fake": is_fake,
@@ -61,5 +68,6 @@ def analyze_text_with_ai(text: str):
         "source_reliability": source_reliability,
         "emotional_language": emotional_language,
         "evidence_quality": evidence_quality,
-        "verdict": verdict
+        "verdict": verdict,
+        "verdict_type": verdict_type
     }

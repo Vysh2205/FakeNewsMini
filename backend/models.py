@@ -16,12 +16,20 @@ class User(Base):
 class AnalysisHistory(Base):
     __tablename__ = "analysis_history"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    content_type = Column(String) # 'text' or 'url'
+    verification_id = Column(String, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    content_type = Column(String) # 'text', 'url', 'image', 'video'
     content = Column(Text)
+    title = Column(String, nullable=True)
+    source_domain = Column(String, nullable=True)
+    verdict = Column(String) # 'REAL', 'FAKE', 'UNCERTAIN'
     is_fake = Column(Boolean)
     confidence_score = Column(Float)
+    overall_risk = Column(Integer, default=50)
+    language = Column(String, default="English")
+    media_path = Column(String, nullable=True)
     explanation = Column(Text)
+    details_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship("User", back_populates="analyses")

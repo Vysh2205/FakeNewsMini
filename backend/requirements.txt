@@ -11,3 +11,10 @@ newspaper3k
 beautifulsoup4
 python-multipart
 lxml_html_clean
+langdetect
+deep-translator
+Pillow
+pytesseract
+opencv-python-headless
+requests
+

@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldAlert, ShieldCheck, Search, Activity, Link as LinkIcon, Download, BarChart2 } from 'lucide-react';
+import { 
+  ShieldAlert, ShieldCheck, Search, Activity, Link as LinkIcon, Download, 
+  BarChart2, FileText, Image as ImageIcon, HelpCircle, History as HistoryIcon,
+  ExternalLink, Globe, AlertTriangle, Info, Upload
+} from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'text' | 'url' | 'dashboard'>('text');
+  const [activeTab, setActiveTab] = useState<'news' | 'media' | 'history' | 'dashboard' | 'workflow'>('news');
+  const [subTab, setSubTab] = useState<'text' | 'url' | 'image' | 'video'>('text');
+  
   const [inputData, setInputData] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [historyList, setHistoryList] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchStats = async () => {
@@ -21,36 +29,71 @@ export default function App() {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/history');
+      const data = await res.json();
+      setHistoryList(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchStats();
+    } else if (activeTab === 'history') {
+      fetchHistory();
     }
   }, [activeTab]);
 
   const analyze = async () => {
-    if (!inputData.trim()) return;
     setLoading(true);
     setErrorMsg(null);
     setResult(null);
     try {
-      const endpoint = activeTab === 'text' ? '/api/analyze/text' : '/api/analyze/url';
-      const body = activeTab === 'text' ? { text: inputData } : { url: inputData };
-      
-      const res = await fetch(`http://127.0.0.1:8000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      let endpoint = '';
+      let options: RequestInit = {};
+
+      if (subTab === 'text') {
+        if (!inputData.trim()) throw new Error("Please enter text or a claim to analyze.");
+        endpoint = '/api/verify/text';
+        options = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: inputData })
+        };
+      } else if (subTab === 'url') {
+        if (!inputData.trim()) throw new Error("Please enter a news URL to analyze.");
+        endpoint = '/api/verify/url';
+        options = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: inputData })
+        };
+      } else if (subTab === 'image' || subTab === 'video') {
+        if (!selectedFile) throw new Error(`Please select an ${subTab} file to upload.`);
+        endpoint = subTab === 'image' ? '/api/verify/image' : '/api/verify/video';
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        options = {
+          method: 'POST',
+          body: formData
+        };
+      }
+
+      const res = await fetch(`http://127.0.0.1:8000${endpoint}`, options);
       
       if (!res.ok) {
-        throw new Error(`Server error: ${res.statusText}`);
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error: ${res.statusText}`);
       }
       
       const data = await res.json();
       setResult(data);
     } catch (error: any) {
       console.error(error);
-      setErrorMsg("Failed to connect to the backend server. Please make sure the FastAPI server is running on port 8000.");
+      setErrorMsg(error.message || "Failed to connect to the backend server.");
     }
     setLoading(false);
   };
@@ -61,65 +104,146 @@ export default function App() {
     doc.setFontSize(22);
     doc.text('FakeBuster AI Analysis Report', 20, 20);
     doc.setFontSize(16);
-    doc.text(`Status: ${result.is_fake ? 'Fake News Detected' : 'Reliable Source'}`, 20, 40);
-    doc.text(`Confidence: ${(result.confidence * 100).toFixed(1)}%`, 20, 50);
+    doc.text(`Verdict: ${result.verdict_type || (result.is_fake ? 'FAKE' : 'REAL')}`, 20, 40);
+    doc.text(`Confidence Score: ${(result.confidence * 100).toFixed(1)}%`, 20, 50);
+    doc.text(`Overall Risk: ${result.overall_risk}% (${result.verdict})`, 20, 60);
     doc.setFontSize(12);
-    doc.text('Explanation:', 20, 70);
-    doc.text(result.explanation, 20, 80, { maxWidth: 170 });
-    doc.text(`Keywords: ${result.keywords.join(', ')}`, 20, 110);
-    doc.save('fakebuster-report.pdf');
+    doc.text('AI Explanation:', 20, 80);
+    doc.text(result.explanation || '', 20, 90, { maxWidth: 170 });
+    if (result.claims && result.claims.length > 0) {
+      doc.text(`Extracted Claims: ${result.claims.join(' | ')}`, 20, 120, { maxWidth: 170 });
+    }
+    doc.save(`fakebuster-report-${result.verification_id || 'result'}.pdf`);
   };
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-zinc-100 p-8 font-sans selection:bg-amber-500 selection:text-black">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            🛡️ Next-Gen Verification
+    <div className="min-h-screen bg-[#08080a] text-zinc-100 p-4 md:p-8 font-sans selection:bg-amber-500 selection:text-black">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-1">
+            🛡️ Multimodal Misinformation Engine
           </div>
-          <h1 className="text-6xl font-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
             FakeBuster AI
           </h1>
-          <p className="text-zinc-400 text-lg max-w-xl mx-auto">Ultra-fast AI-powered verification engine for detecting misinformation and validating claims.</p>
+          <p className="text-zinc-400 text-base md:text-lg max-w-2xl mx-auto">
+            Real-time AI verification platform for news text, URLs, images, and videos with multilingual detection and fact-checking integration.
+          </p>
         </motion.div>
 
-        <div className="flex justify-center gap-3 mb-8">
-          <button onClick={() => { setActiveTab('text'); setResult(null); }} className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 ${activeTab === 'text' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'}`}>Text Analysis</button>
-          <button onClick={() => { setActiveTab('url'); setResult(null); }} className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 ${activeTab === 'url' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'}`}>URL Analysis</button>
-          <button onClick={() => setActiveTab('dashboard')} className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'}`}>Analytics Dashboard</button>
+        {/* Primary Navigation Tabs */}
+        <div className="flex flex-wrap justify-center gap-2 md:gap-3 bg-zinc-950 p-2 rounded-2xl border border-zinc-800/80 shadow-lg">
+          <button 
+            onClick={() => { setActiveTab('news'); setSubTab('text'); setResult(null); setErrorMsg(null); }} 
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'news' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <FileText size={16} /> Verify News
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('media'); setSubTab('image'); setResult(null); setErrorMsg(null); }} 
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'media' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <ImageIcon size={16} /> Verify Media
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('history')} 
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <HistoryIcon size={16} /> History
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('dashboard')} 
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <BarChart2 size={16} /> Analytics
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('workflow')} 
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'workflow' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <HelpCircle size={16} /> How It Works
+          </button>
         </div>
 
-        {activeTab !== 'dashboard' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
+        {/* Input Card Container */}
+        {(activeTab === 'news' || activeTab === 'media') && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            
+            {/* Sub-tabs */}
+            <div className="flex gap-4 border-b border-zinc-800/80 pb-4 mb-6">
+              {activeTab === 'news' ? (
+                <>
+                  <button onClick={() => setSubTab('text')} className={`text-sm font-bold pb-1 transition ${subTab === 'text' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Text / Article</button>
+                  <button onClick={() => setSubTab('url')} className={`text-sm font-bold pb-1 transition ${subTab === 'url' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>News URL</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setSubTab('image')} className={`text-sm font-bold pb-1 transition ${subTab === 'image' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Image Verification</button>
+                  <button onClick={() => setSubTab('video')} className={`text-sm font-bold pb-1 transition ${subTab === 'video' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Video Verification</button>
+                </>
+              )}
+            </div>
+
             <div className="space-y-5">
-              {activeTab === 'text' ? (
+              {subTab === 'text' && (
                 <textarea
-                  className="w-full h-44 bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 outline-none transition placeholder-zinc-600"
-                  placeholder="Paste a news article, social media post, or claim here..."
+                  className="w-full h-44 bg-zinc-950/70 border border-zinc-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-amber-500/50 outline-none transition placeholder-zinc-600 font-sans"
+                  placeholder="Paste news text, headline, or claim in English, Hindi (हिंदी), or Telugu (తెలుగు)..."
                   value={inputData} onChange={(e) => setInputData(e.target.value)}
                 />
-              ) : (
-                <div className="flex items-center bg-zinc-950/60 border border-zinc-800 focus-within:ring-2 focus-within:ring-amber-500/50 focus-within:border-amber-500/50 rounded-xl px-4 py-2.5 transition">
-                  <LinkIcon className="text-zinc-500 mr-2" size={18} />
+              )}
+
+              {subTab === 'url' && (
+                <div className="flex items-center bg-zinc-950/70 border border-zinc-800 focus-within:ring-2 focus-within:ring-amber-500/50 rounded-xl px-4 py-3">
+                  <LinkIcon className="text-zinc-500 mr-3 shrink-0" size={20} />
                   <input
                     type="url"
-                    className="w-full bg-transparent p-1.5 text-white outline-none placeholder-zinc-600"
-                    placeholder="https://example-news.com/article-url"
+                    className="w-full bg-transparent text-white outline-none placeholder-zinc-600"
+                    placeholder="https://example-news.com/article-to-verify"
                     value={inputData} onChange={(e) => setInputData(e.target.value)}
                   />
                 </div>
               )}
-              <button onClick={analyze} disabled={loading} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black py-3.5 rounded-xl flex items-center justify-center gap-2 font-black transition-all duration-300 shadow-lg shadow-amber-500/10 active:scale-[0.99] disabled:opacity-50">
+
+              {(subTab === 'image' || subTab === 'video') && (
+                <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center bg-zinc-950/40 hover:border-amber-500/40 transition">
+                  <Upload className="mx-auto text-amber-400 mb-3" size={36} />
+                  <input
+                    type="file"
+                    accept={subTab === 'image' ? "image/jpeg,image/jpg,image/png,image/webp" : "video/mp4,video/mov,video/avi"}
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="hidden" id="file-upload"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm inline-block">
+                    {selectedFile ? selectedFile.name : `Select ${subTab === 'image' ? 'Image' : 'Video'} File`}
+                  </label>
+                  <p className="text-xs text-zinc-500 mt-2">
+                    {subTab === 'image' ? "Supported: JPG, JPEG, PNG, WEBP (Max 10MB)" : "Supported: MP4, MOV, AVI (Max 50MB)"}
+                  </p>
+                </div>
+              )}
+
+              <button 
+                onClick={analyze} 
+                disabled={loading} 
+                className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black py-4 rounded-xl flex items-center justify-center gap-2 font-black transition-all duration-300 shadow-lg shadow-amber-500/10 active:scale-[0.99] disabled:opacity-50"
+              >
                 {loading ? <Activity className="animate-spin" /> : <Search size={20} />}
-                {loading ? 'Analyzing with FakeBuster AI...' : 'Verify Content'}
+                {loading ? 'Analyzing with FakeBuster AI Engine...' : 'Run FakeBuster Verification'}
               </button>
               
               {errorMsg && (
-                <div className="mt-4 p-4 bg-red-950/40 border border-red-500/30 rounded-xl text-red-200 flex items-start gap-2">
-                  <ShieldAlert className="text-red-400 shrink-0 mt-0.5" size={20} />
+                <div className="mt-4 p-4 bg-red-950/40 border border-red-500/30 rounded-xl text-red-200 flex items-start gap-3">
+                  <ShieldAlert className="text-red-400 shrink-0 mt-0.5" size={22} />
                   <div>
-                    <h4 className="font-bold text-red-400">Connection Error</h4>
+                    <h4 className="font-bold text-red-400">Verification Alert</h4>
                     <p className="text-sm text-red-300/90 mt-0.5">{errorMsg}</p>
                   </div>
                 </div>
@@ -128,138 +252,397 @@ export default function App() {
           </motion.div>
         )}
 
-        {result && activeTab !== 'dashboard' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`p-8 rounded-2xl border backdrop-blur-xl relative overflow-hidden ${result.is_fake ? 'bg-red-950/20 border-red-500/30' : 'bg-emerald-950/20 border-emerald-500/30'}`}>
-            <button onClick={downloadPDF} className="absolute top-4 right-4 flex items-center gap-2 bg-zinc-900/80 hover:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold transition border border-zinc-800">
-              <Download size={14} /> Export Report
-            </button>
-            <div className="flex items-center gap-6">
-              {result.is_fake ? <ShieldAlert className="w-16 h-16 text-red-500" /> : <ShieldCheck className="w-16 h-16 text-emerald-500" />}
-              <div>
-                <h2 className="text-3xl font-black">{result.is_fake ? 'Potential Fake News' : 'Likely Reliable Source'}</h2>
-                <p className="text-zinc-400 text-lg mt-1">Confidence Score: <span className={`font-mono font-bold ${result.is_fake ? 'text-red-400' : 'text-emerald-400'}`}>{(result.confidence * 100).toFixed(1)}%</span></p>
+        {/* Verification Result Card */}
+        {result && (activeTab === 'news' || activeTab === 'media') && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            
+            {/* PROMINENT TOP VERDICT BANNER */}
+            <div className={`p-8 rounded-2xl border backdrop-blur-xl relative overflow-hidden ${
+              result.verdict_type === 'FAKE' ? 'bg-red-950/30 border-red-500/50' :
+              result.verdict_type === 'UNCERTAIN' ? 'bg-amber-950/30 border-amber-500/50' :
+              'bg-emerald-950/30 border-emerald-500/50'
+            }`}>
+              <button onClick={downloadPDF} className="absolute top-4 right-4 flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 px-4 py-2 rounded-xl text-xs font-bold transition border border-zinc-800">
+                <Download size={14} /> Export Report
+              </button>
+
+              <div className="flex items-center gap-6">
+                {result.verdict_type === 'FAKE' && <ShieldAlert className="w-20 h-20 text-red-500 shrink-0" />}
+                {result.verdict_type === 'REAL' && <ShieldCheck className="w-20 h-20 text-emerald-500 shrink-0" />}
+                {result.verdict_type === 'UNCERTAIN' && <AlertTriangle className="w-20 h-20 text-amber-500 shrink-0" />}
+
+                <div>
+                  <div className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 border" style={{
+                    borderColor: result.verdict_type === 'FAKE' ? '#ef4444' : result.verdict_type === 'UNCERTAIN' ? '#f59e0b' : '#10b981',
+                    color: result.verdict_type === 'FAKE' ? '#fca5a5' : result.verdict_type === 'UNCERTAIN' ? '#fde68a' : '#a7f3d0'
+                  }}>
+                    VERDICT: {result.verdict_type || (result.is_fake ? 'FAKE' : 'REAL')}
+                  </div>
+
+                  <h2 className="text-3xl md:text-4xl font-black">
+                    {result.verdict_type === 'FAKE' && 'Potential Fake News Detected'}
+                    {result.verdict_type === 'REAL' && 'Likely Reliable Source / Real News'}
+                    {result.verdict_type === 'UNCERTAIN' && 'UNCERTAIN – Additional Verification Recommended'}
+                  </h2>
+                  
+                  <p className="text-zinc-300 text-lg mt-2">
+                    Model Confidence: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
+                    <span className="mx-3 text-zinc-600">|</span>
+                    Overall Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Fake News Risk Meter */}
-            <div className="bg-zinc-950/70 border border-zinc-800/85 rounded-2xl p-6 mt-6 space-y-6">
-              <div className="flex justify-between items-center border-b border-zinc-800/60 pb-4">
-                <span className="text-sm font-bold uppercase tracking-wider text-zinc-350 flex items-center gap-1.5">
-                  1. Fake News Risk Meter <span className="text-amber-400">⭐⭐⭐⭐⭐</span>
-                </span>
-                <span className="text-xs text-zinc-500">Multi-metric deep verification</span>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <span className="text-zinc-300 font-bold text-lg">Overall Risk:</span>
-                  <span className={`text-2xl font-black ${result.overall_risk >= 75 ? 'text-red-500' : result.overall_risk >= 35 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                    {result.overall_risk}%
-                  </span>
-                </div>
-                <div className="w-full bg-zinc-900 rounded-full h-3.5 overflow-hidden border border-zinc-800">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${result.overall_risk >= 75 ? 'bg-gradient-to-r from-red-600 to-red-400' : result.overall_risk >= 35 ? 'bg-gradient-to-r from-amber-500 to-yellow-400' : 'bg-gradient-to-r from-emerald-600 to-emerald-400'}`} 
-                    style={{ width: `${result.overall_risk}%` }} 
-                  />
-                </div>
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-zinc-800/60 pb-3">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">1. Fake News Risk Meter Breakdown</h3>
+                <span className="text-xs text-zinc-500">Multi-metric evaluation</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-2">
-                {/* Clickbait */}
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-zinc-400">Clickbait</span>
-                    <span className="text-zinc-300">{result.clickbait}%</span>
+                    <span className="text-zinc-400">Clickbait Probability</span>
+                    <span className="text-zinc-200">{result.clickbait}%</span>
                   </div>
-                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
                     <div className="bg-amber-500 h-full rounded-lg" style={{ width: `${result.clickbait}%` }} />
                   </div>
                 </div>
 
-                {/* Source Reliability */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-zinc-400">Source Reliability</span>
-                    <span className="text-zinc-300">{result.source_reliability}%</span>
+                    <span className="text-zinc-200">{result.source_reliability}%</span>
                   </div>
-                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
                     <div className="bg-blue-500 h-full rounded-lg" style={{ width: `${result.source_reliability}%` }} />
                   </div>
                 </div>
 
-                {/* Emotional Language */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-zinc-400">Emotional Language</span>
-                    <span className="text-zinc-300">{result.emotional_language}%</span>
+                    <span className="text-zinc-400">Emotional Language Intensity</span>
+                    <span className="text-zinc-200">{result.emotional_language}%</span>
                   </div>
-                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
                     <div className="bg-rose-500 h-full rounded-lg" style={{ width: `${result.emotional_language}%` }} />
                   </div>
                 </div>
 
-                {/* Evidence Quality */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-zinc-400">Evidence Quality</span>
-                    <span className="text-zinc-300">{result.evidence_quality}%</span>
+                    <span className="text-zinc-200">{result.evidence_quality}%</span>
                   </div>
-                  <div className="w-full bg-zinc-900 rounded-lg h-2.5 overflow-hidden border border-zinc-800/50">
+                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
                     <div className="bg-emerald-500 h-full rounded-lg" style={{ width: `${result.evidence_quality}%` }} />
                   </div>
                 </div>
               </div>
-
-              <div className="border-t border-zinc-800/60 pt-4 flex justify-between items-center">
-                <span className="text-zinc-400 text-sm font-semibold">Final Verdict:</span>
-                <span className={`px-4 py-1.5 rounded-lg text-sm font-black border uppercase tracking-wider ${
-                  result.verdict === 'High Risk' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                  result.verdict === 'Moderate Risk' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                  'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                }`}>
-                  {result.verdict}
-                </span>
-              </div>
             </div>
 
-            <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-6 mt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2">FakeBuster Verdict Explanation</h3>
-              <p className="text-zinc-300 leading-relaxed">{result.explanation}</p>
-            </div>
-            <div className="mt-6">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">Key Risk Indicators</h3>
-              <div className="flex gap-2 flex-wrap">
-                {result.keywords.map((kw: string, i: number) => (
-                  <span key={i} className="px-3.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-semibold text-zinc-300">{kw}</span>
-                ))}
+            {/* Language & Translation Info */}
+            {result.detected_language && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-sm font-bold text-zinc-300 mb-2">
+                  <Globe size={18} className="text-amber-400" />
+                  Language Detection: <span className="text-amber-400 font-mono">{result.detected_language}</span>
+                </div>
+                {result.was_translated && (
+                  <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl mt-3 text-sm text-zinc-300">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block mb-1">Translated to English for AI Analysis:</span>
+                    "{result.translated_text}"
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* Extracted Factual Claims */}
+            {result.claims && result.claims.length > 0 && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Extracted Factual Claims</h3>
+                <div className="space-y-2">
+                  {result.claims.map((c: string, idx: number) => (
+                    <div key={idx} className="p-3.5 bg-zinc-950/60 border border-zinc-800/80 rounded-xl text-sm text-zinc-300 flex items-start gap-3">
+                      <span className="text-amber-400 font-bold shrink-0">#{idx + 1}</span>
+                      <p>{c}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* External Fact-Checks */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Reputable Fact-Checks</h3>
+              {result.fact_checks && result.fact_checks.length > 0 ? (
+                <div className="space-y-3">
+                  {result.fact_checks.map((fc: any, i: number) => (
+                    <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-amber-400">{fc.organization}</span>
+                        <span className="px-2 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300">{fc.verdict}</span>
+                      </div>
+                      <p className="text-sm font-semibold text-white">{fc.summary}</p>
+                      <a href={fc.source_link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
+                        Read Fact-Check <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
+                  {result.fact_check_message || "No matching fact-check found."}
+                </p>
+              )}
+            </div>
+
+            {/* Web Evidence */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Retrieved Evidence Sources</h3>
+              {result.evidence && result.evidence.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {result.evidence.map((ev: any, i: number) => (
+                    <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-zinc-400">{ev.source}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ev.category === 'Contradicting' ? 'bg-red-950 text-red-400' : 'bg-emerald-950 text-emerald-400'}`}>{ev.category}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white line-clamp-1">{ev.title}</h4>
+                      <p className="text-xs text-zinc-400 line-clamp-2">{ev.snippet}</p>
+                      <a href={ev.url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
+                        Source Link <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
+                  {result.evidence_message || "No relevant evidence found."}
+                </p>
+              )}
+            </div>
+
+            {/* Source Credibility Card */}
+            {result.source_info && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Source Credibility</h3>
+                  <p className="text-lg font-bold text-white mt-1">{result.source_info.source_name} ({result.source_info.domain})</p>
+                  <p className="text-sm text-zinc-400">{result.source_info.credibility_status}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-zinc-500 font-semibold uppercase">Reliability Score</span>
+                  <p className="text-3xl font-black text-amber-400">{result.source_info.reliability_score}/100</p>
+                </div>
+              </div>
+            )}
+
+            {/* Limitations Notice */}
+            {result.limitations && (
+              <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-2xl text-xs text-zinc-400 flex items-start gap-3">
+                <Info size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                <p><strong className="text-zinc-300">System Disclaimer & Limitations:</strong> {result.limitations}</p>
+              </div>
+            )}
+
+          </motion.div>
+        )}
+
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-2xl space-y-6">
+            <h2 className="text-2xl font-black text-white flex items-center gap-2">
+              <HistoryIcon className="text-amber-400" /> Recent Verification Logs
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-zinc-300">
+                <thead className="text-xs uppercase bg-zinc-950 text-zinc-400 border-b border-zinc-800">
+                  <tr>
+                    <th className="p-3">ID</th>
+                    <th className="p-3">Type</th>
+                    <th className="p-3">Claim / Title</th>
+                    <th className="p-3">Verdict</th>
+                    <th className="p-3">Risk</th>
+                    <th className="p-3">Language</th>
+                    <th className="p-3">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/60">
+                  {historyList.map((h, i) => (
+                    <tr key={i} className="hover:bg-zinc-950/40 transition">
+                      <td className="p-3 font-mono text-xs text-amber-400">{h.verification_id}</td>
+                      <td className="p-3 uppercase text-xs font-bold">{h.content_type}</td>
+                      <td className="p-3 max-w-xs truncate">{h.title || h.content_snippet}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs font-black uppercase ${
+                          h.verdict === 'FAKE' ? 'bg-red-950 text-red-400' :
+                          h.verdict === 'UNCERTAIN' ? 'bg-amber-950 text-amber-400' :
+                          'bg-emerald-950 text-emerald-400'
+                        }`}>
+                          {h.verdict}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono">{h.overall_risk}%</td>
+                      <td className="p-3">{h.language}</td>
+                      <td className="p-3 text-xs text-zinc-500">{h.timestamp}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </motion.div>
         )}
 
+        {/* Analytics Dashboard */}
         {activeTab === 'dashboard' && stats && (
-          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500/30" />
-              <BarChart2 className="w-10 h-10 mx-auto text-amber-400 mb-2" />
-              <h3 className="text-zinc-400 font-semibold text-sm">Total Analyzed</h3>
-              <p className="text-4xl font-extrabold text-white mt-2">{stats.total_analyzed}</p>
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
+                <BarChart2 className="w-8 h-8 mx-auto text-amber-400 mb-2" />
+                <h3 className="text-zinc-400 font-semibold text-xs uppercase">Total Analyzed</h3>
+                <p className="text-4xl font-black text-white mt-2">{stats.total_analyzed}</p>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-red-500/30 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
+                <ShieldAlert className="w-8 h-8 mx-auto text-red-400 mb-2" />
+                <h3 className="text-red-300 font-semibold text-xs uppercase">Fake News Detected</h3>
+                <p className="text-4xl font-black text-red-400 mt-2">{stats.fake_detected}</p>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-emerald-500/30 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
+                <ShieldCheck className="w-8 h-8 mx-auto text-emerald-400 mb-2" />
+                <h3 className="text-emerald-300 font-semibold text-xs uppercase">Real / Reliable</h3>
+                <p className="text-4xl font-black text-emerald-400 mt-2">{stats.real_detected}</p>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-amber-500/30 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
+                <AlertTriangle className="w-8 h-8 mx-auto text-amber-400 mb-2" />
+                <h3 className="text-amber-300 font-semibold text-xs uppercase">Uncertain Claims</h3>
+                <p className="text-4xl font-black text-amber-400 mt-2">{stats.uncertain_detected || 0}</p>
+              </div>
             </div>
-            <div className="bg-zinc-900/40 border border-red-500/20 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-red-500/30" />
-              <ShieldAlert className="w-10 h-10 mx-auto text-red-400 mb-2" />
-              <h3 className="text-zinc-400 font-semibold text-sm">Fake News Detected</h3>
-              <p className="text-4xl font-extrabold text-red-400 mt-2">{stats.fake_detected}</p>
-            </div>
-            <div className="bg-zinc-900/40 border border-emerald-500/20 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500/30" />
-              <ShieldCheck className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
-              <h3 className="text-zinc-400 font-semibold text-sm">Reliable Sources</h3>
-              <p className="text-4xl font-extrabold text-emerald-400 mt-2">{stats.real_detected}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">Input Type Breakdown</h3>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>Text Articles</span>
+                      <span>{stats.input_breakdown?.text || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.input_breakdown?.text / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>News URLs</span>
+                      <span>{stats.input_breakdown?.url || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.input_breakdown?.url / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>Image Media</span>
+                      <span>{stats.input_breakdown?.image || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.input_breakdown?.image / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>Video Clips</span>
+                      <span>{stats.input_breakdown?.video || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.input_breakdown?.video / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">Language Distribution</h3>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>English</span>
+                      <span>{stats.language_breakdown?.English || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-amber-400 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.language_breakdown?.English / stats.total_analyzed) * 100 : 100}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>Hindi (हिंदी)</span>
+                      <span>{stats.language_breakdown?.Hindi || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-rose-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.language_breakdown?.Hindi / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span>Telugu (తెలుగు)</span>
+                      <span>{stats.language_breakdown?.Telugu || 0}</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-full h-2">
+                      <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${stats.total_analyzed > 0 ? (stats.language_breakdown?.Telugu / stats.total_analyzed) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
+
+        {/* How It Works Workflow Tab */}
+        {activeTab === 'workflow' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-2xl space-y-8">
+            <h2 className="text-2xl font-black text-white text-center">FakeBuster AI Pipeline Workflow</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
+                <span className="text-2xl">📥</span>
+                <h4 className="font-bold text-amber-400">1. Multimodal Input</h4>
+                <p className="text-xs text-zinc-400">User submits Text, URL, Image, or Video clip.</p>
+              </div>
+
+              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
+                <span className="text-2xl">🔍</span>
+                <h4 className="font-bold text-amber-400">2. Extraction & OCR</h4>
+                <p className="text-xs text-zinc-400">Scrapes text, extracts EXIF metadata, frame OCR, & speech transcripts.</p>
+              </div>
+
+              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
+                <span className="text-2xl">🌐</span>
+                <h4 className="font-bold text-amber-400">3. Language & Claims</h4>
+                <p className="text-xs text-zinc-400">Detects language (English, Hindi, Telugu) & isolates factual claims.</p>
+              </div>
+
+              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
+                <span className="text-2xl">🤖</span>
+                <h4 className="font-bold text-amber-400">4. AI Analysis & Evidence</h4>
+                <p className="text-xs text-zinc-400">RoBERTa model evaluation, fact-check search, & risk meter score.</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
       </div>
     </div>
   );
