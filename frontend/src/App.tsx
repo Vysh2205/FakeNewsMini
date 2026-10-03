@@ -59,7 +59,7 @@ export default function App() {
     if (!result) return;
     const doc = new jsPDF();
     doc.setFontSize(22);
-    doc.text('Verity AI Analysis Report', 20, 20);
+    doc.text('FakeBuster AI Analysis Report', 20, 20);
     doc.setFontSize(16);
     doc.text(`Status: ${result.is_fake ? 'Fake News Detected' : 'Reliable Source'}`, 20, 40);
     doc.text(`Confidence: ${(result.confidence * 100).toFixed(1)}%`, 20, 50);
@@ -67,7 +67,7 @@ export default function App() {
     doc.text('Explanation:', 20, 70);
     doc.text(result.explanation, 20, 80, { maxWidth: 170 });
     doc.text(`Keywords: ${result.keywords.join(', ')}`, 20, 110);
-    doc.save('verity-report.pdf');
+    doc.save('fakebuster-report.pdf');
   };
 
   return (
@@ -78,7 +78,7 @@ export default function App() {
             🛡️ Next-Gen Verification
           </div>
           <h1 className="text-6xl font-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
-            Verity AI
+            FakeBuster AI
           </h1>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">Ultra-fast AI-powered verification engine for detecting misinformation and validating claims.</p>
         </motion.div>
@@ -112,7 +112,7 @@ export default function App() {
               )}
               <button onClick={analyze} disabled={loading} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black py-3.5 rounded-xl flex items-center justify-center gap-2 font-black transition-all duration-300 shadow-lg shadow-amber-500/10 active:scale-[0.99] disabled:opacity-50">
                 {loading ? <Activity className="animate-spin" /> : <Search size={20} />}
-                {loading ? 'Analyzing with Verity AI...' : 'Verify Content'}
+                {loading ? 'Analyzing with FakeBuster AI...' : 'Verify Content'}
               </button>
               
               {errorMsg && (
@@ -224,7 +224,7 @@ export default function App() {
             </div>
 
             <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-6 mt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2">Verity Verdict Explanation</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2">FakeBuster Verdict Explanation</h3>
               <p className="text-zinc-300 leading-relaxed">{result.explanation}</p>
             </div>
             <div className="mt-6">

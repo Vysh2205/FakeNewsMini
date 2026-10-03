@@ -7,7 +7,7 @@ from ml_service import analyze_text_with_ai
 from database import get_db
 import models
 
-app = FastAPI(title="Verity AI Platform API")
+app = FastAPI(title="FakeBuster AI Platform API")
 
 app.add_middleware(
     CORSMiddleware,
