@@ -51,9 +51,17 @@ def analyze_text_with_ai(text: str):
     elif is_fake:
         verdict_type = "FAKE"
         verdict = "High Risk" if overall_risk >= 70 else "Moderate Risk"
+        explanation = (
+            f"The AI model detected linguistic patterns and indicators common in unverified or fake news. "
+            f"Overall risk assessment indicates a {verdict.lower()} profile with {overall_risk}% risk score."
+        )
     else:
         verdict_type = "REAL"
         verdict = "Low Risk" if overall_risk <= 20 else "Moderate Risk"
+        explanation = (
+            f"The AI model verified patterns common in factual and reliable news reporting. "
+            f"Overall risk assessment indicates a {verdict.lower()} profile with {overall_risk}% risk score."
+        )
 
     # Explainable AI keywords
     keywords = ["sensational", "unverified", "clickbait"] if is_fake else ["verified", "factual", "reported"]
