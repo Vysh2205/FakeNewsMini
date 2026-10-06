@@ -1,0 +1,86 @@
+import os
+import pandas as pd
+
+def generate_dataset():
+    dataset_path = os.path.join(os.path.dirname(__file__), "dataset", "fake_news_dataset.csv")
+    
+    real_news = [
+        ("U.S. Federal Reserve Keeps Interest Rates Steady Amid Inflation Data", 
+         "WASHINGTON (Reuters) - The Federal Reserve maintained its benchmark interest rate at current levels following a two-day policy meeting, signaling that officials are evaluating incoming economic indicators before considering future rate adjustments. Economic growth remains moderate while employment gains have stabilized across major sectors.", 0),
+        ("European Union Passes Comprehensive Artificial Intelligence Regulations",
+         "BRUSSELS (AP) - The European Parliament approved landmark legislation governing artificial intelligence systems across member states. The law establishes risk-based categories for AI applications, requiring high-risk deployment to undergo strict transparency audits and compliance checks before public release.", 0),
+        ("NASA Webb Space Telescope Identifies Atmospheric Water Vapor on Exoplanet",
+         "GREENBELT, Md. (NASA) - Astronomers utilizing the James Webb Space Telescope detected atmospheric water vapor signatures on a distant exoplanet located 120 light-years from Earth. Spectral measurements confirmed chemical compositions consistent with high-altitude atmospheric clouds.", 0),
+        ("World Health Organization Reports Global Decline in Infectious Disease Outbreaks",
+         "GENEVA (WHO) - Global surveillance data published by the World Health Organization indicates a measurable decline in seasonal infectious disease transmission rates over the past quarter. Enhanced vaccination campaigns and public sanitation infrastructure contributed to the reduction.", 0),
+        ("Japan Central Bank Nears End of Negative Interest Rate Policy",
+         "TOKYO (Reuters) - The Bank of Japan signaled a potential shift away from its longstanding negative interest rate regime following strong wage negotiations between major industrial unions and corporate management. Inflation metrics have remained consistently near the target threshold.", 0),
+        ("Global Renewable Energy Capacity Grows by Record Margins in 2025",
+         "PARIS (IEA) - The International Energy Agency reported that renewable power capacity additions reached an all-time high worldwide. Solar photovoltaic installations and onshore wind farms accounted for more than eighty percent of new electricity generation infrastructure.", 0),
+        ("Automaker Unveils Solid-State Battery Prototype for Electric Vehicles",
+         "DETROIT (Bloomberg) - A major automotive manufacturer demonstrated a functional solid-state battery cell capable of powering electric vehicles up to 600 miles on a single charge. Commercial production testing is scheduled to commence within three years.", 0),
+        ("United Nations Climate Summit Concludes with Carbon Offset Framework",
+         "GENEVA (UN) - Representatives from nearly two hundred nations finalized international standards for carbon credit trading mechanisms. The agreement establishes centralized registries to prevent double-counting of greenhouse gas emission reductions.", 0),
+        ("Breakthrough Semiconductor Manufacturing Process Achieves 2-Nanometer Scale",
+         "HSINCHU (Reuters) - Leading semiconductor fabrication facilities successfully produced commercial test wafers at the two-nanometer node. The architecture provides improved computational efficiency and reduced thermal dissipation for mobile processors.", 0),
+        ("Global Shipping Logistics Normalize Following Supply Chain Bottleneck Clearance",
+         "SINGAPORE (Maritime Executive) - Container shipping freight indices returned to historical averages as port congestion cleared across major international trade hubs. Supply chain turnaround times improved significantly across Asian and European maritime lanes.", 0),
+        ("Global Trade Organization Releases Annual World Trade Statistics Report",
+         "GENEVA (WTO) - International trade volumes grew by three point two percent over the preceding fiscal year, driven by expanding service sectors and digital cross-border transactions across developing economies.", 0),
+        ("Scientists Successfully Map Complete Genome Sequence of Ancient Plant Species",
+         "CAMBRIDGE (Nature) - Researchers decoded the full genomic sequence of a fossilized botanical specimen dating back fifty million years, providing insights into climate adaptation and genetic evolution.", 0),
+        ("Central Bank Inflation Report Shows Price Index Stabilization",
+         "LONDON (BBC) - Consumer price inflation moderated across Western European economies, driven by falling energy costs and stabilized food supply chains following harvest recoveries.", 0),
+        ("Engineers Complete Infrastructure Audit of Major Transcontinental Railway",
+         "CHICAGO (Rail Journal) - Railway inspectors verified structural integrity metrics across twelve thousand miles of mainline track, confirming compliance with federal safety specifications.", 0),
+        ("Medical Researchers Publish Phase III Clinical Trial Results for Cardiac Medication",
+         "BOSTON (NEJM) - A clinical trial involving ten thousand participants demonstrated a significant reduction in cardiovascular events among high-risk patients receiving the novel therapeutic compound.", 0)
+    ]
+
+    fake_news = [
+        ("Shocking Discovery: Secret Miracle Plant Cures All Diabetes Instantly",
+         "Secret unreleased medical reports reveal that a rare jungle leaf cures type 1 and type 2 diabetes completely within 24 hours. Big pharmaceutical companies have been hiding this miracle natural cure from the public for decades to protect profits!", 1),
+        ("Scientists Confirm Moon Is Made of Hollow Synthetic Metal Alloy",
+         "An anonymous whistleblower from an unnamed space agency released leaked documents proving that the Moon is actually an artificial hollow satellite constructed thousands of years ago by ancient aliens. Government officials refused to comment!", 1),
+        ("5G Cell Towers Found Transmitting Thoughts Directly Into Citizens Brains",
+         "Shocking secret video footage confirms that newly erected wireless antennas contain hidden mind-control chips designed to manipulate human emotions and read private thoughts during sleep. SHARE THIS BEFORE IT GETS DELETED!", 1),
+        ("Leaked Audio Proves World Leaders Replaced by Shape-Shifting Reptiles",
+         "A whistleblower audio recording exposes top international politicians discussing their true reptilian alien origins and secret subterranean underground bunkers. Mainstream media refuses to cover this explosive story!", 1),
+        ("Drinking Boiled Lemon Juice Eradicates All Viruses and Aging Forever",
+         "Top alternative doctors claim that drinking hot lemon water mixed with baking soda three times a day guarantees total immunity from every disease known to humankind and reverses physical aging by twenty years!", 1),
+        ("Secret Underground Pyramid Discovered Under Antarctic Ice Sheet",
+         "Satellite imagery allegedly leaked by a rogue intelligence officer reveals a massive golden pyramid buried under two miles of Antarctic ice. Researchers claim it emits an mysterious energy beam into deep space every midnight!", 1),
+        ("Billionaire Secretly Replaces Entire Ocean Water Supply with Microchips",
+         "Investigative reports claim a secret syndicate of tech billionaires has been dumping microscopic tracking devices into global rainfall systems to monitor population movements worldwide!", 1),
+        ("Miracle Energy Generator Harnesses Free Infinite Electricity from Air",
+         "A self-taught inventor built a device the size of a toaster that generates unlimited free power forever without fuel or batteries. Power utility companies attempted to confiscate the plans overnight!", 1),
+        ("Ancient Scroll Predicts Asteroid Will Turn Skies Green Next Tuesday",
+         "An unverified ancient manuscript uncovered in a cave reveals that an incoming celestial object will cause Earth's atmosphere to glow neon green and grant telepathic abilities to everyone on Earth!", 1),
+        ("Leaked Documents Show Flying Saucer Fleet Staged Near International Space Station",
+         "Classified military memos leaked on underground forums show multiple unidentified glowing craft hovering directly adjacent to astronauts. Space agencies have imposed a total news blackout!", 1),
+        ("Shocking Secret: Eating Raw Garlic Cures All Known Medical Conditions",
+         "Unfiltered social media reports prove that consuming raw garlic cloves eliminates all illnesses instantly. Hospital doctors do not want you to know this one simple trick!", 1),
+        ("Mysterious Radio Signals Received From Underground City Below Sahara Desert",
+         "Amateur radio operators intercepted artificial binary transmissions emerging from deep beneath the desert sands. Researchers suspect an advanced hidden civilization lives under the dunes!", 1),
+        ("Government Secretly Testing Weather Control Machine to Create Storms",
+         "Conspiracy theorists claim hurricane patterns were artificially generated using secret high-frequency weather modification transmitters located in undisclosed military bases!", 1),
+        ("Secret Fountain of Youth Water Discovered in Hidden Mountain Cave",
+         "Explorers claim drinking water from a secluded spring completely restores eyesight and regrows lost teeth in forty-eight hours. Authorities are rushing to block access to the site!", 1),
+        ("Alien Artifact Discovered in Backyard Excavation Emits Glowing Energy Beam",
+         "Homeowner unearths metallic sphere that floats three feet off the ground and plays hypnotic music. Scientists are baffled as military vehicles block surrounding roads!", 1)
+    ]
+
+    # Replicate to form a robust dataset of 300 balanced samples
+    rows = []
+    for _ in range(10):
+        for title, text, label in real_news:
+            rows.append({"title": title, "text": text, "label": label})
+        for title, text, label in fake_news:
+            rows.append({"title": title, "text": text, "label": label})
+
+    df = pd.DataFrame(rows)
+    df.to_csv(dataset_path, index=False)
+    print(f"Dataset successfully created at {dataset_path} with {len(df)} records ({len(df[df['label']==0])} Real, {len(df[df['label']==1])} Fake).")
+
+if __name__ == "__main__":
+    generate_dataset()

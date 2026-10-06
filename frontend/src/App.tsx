@@ -265,11 +265,19 @@ export default function App() {
                 {result.verdict_type === 'UNCERTAIN' && <AlertTriangle className="w-20 h-20 text-amber-500 shrink-0" />}
 
                 <div>
-                  <div className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 border" style={{
-                    borderColor: result.verdict_type === 'FAKE' ? '#ef4444' : result.verdict_type === 'UNCERTAIN' ? '#f59e0b' : '#10b981',
-                    color: result.verdict_type === 'FAKE' ? '#fca5a5' : result.verdict_type === 'UNCERTAIN' ? '#fde68a' : '#a7f3d0'
-                  }}>
-                    VERDICT: {result.verdict_type || (result.is_fake ? 'FAKE' : 'REAL')}
+                  <div className="flex gap-2 mb-2 flex-wrap">
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border" style={{
+                      borderColor: result.verdict_type === 'FAKE' ? '#ef4444' : result.verdict_type === 'UNCERTAIN' ? '#f59e0b' : '#10b981',
+                      color: result.verdict_type === 'FAKE' ? '#fca5a5' : result.verdict_type === 'UNCERTAIN' ? '#fde68a' : '#a7f3d0'
+                    }}>
+                      PREDICTION: {result.prediction ? result.prediction.toUpperCase() : (result.is_fake ? 'FAKE' : 'REAL')}
+                    </span>
+                    
+                    {result.model_used && (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        MODEL: {result.model_used}
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="text-3xl md:text-4xl font-black">
@@ -279,12 +287,47 @@ export default function App() {
                   </h2>
                   
                   <p className="text-zinc-300 text-lg mt-2">
-                    Model Confidence: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
+                    Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
                     <span className="mx-3 text-zinc-600">|</span>
-                    Overall Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
+                    Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
+                    <span className="mx-3 text-zinc-600">|</span>
+                    Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
                   </p>
                 </div>
               </div>
+
+              {/* Trained ML Models Evaluation Table */}
+              {result.all_metrics && Object.keys(result.all_metrics).length > 0 && (
+                <div className="mt-6 pt-4 border-t border-zinc-800/80">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">Trained ML Classifiers Benchmark Comparison</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left text-zinc-300 border border-zinc-800/80 rounded-lg overflow-hidden">
+                      <thead className="bg-zinc-950 text-zinc-400 uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2">Model</th>
+                          <th className="p-2 text-right">Accuracy</th>
+                          <th className="p-2 text-right">Precision</th>
+                          <th className="p-2 text-right">Recall</th>
+                          <th className="p-2 text-right">F1-Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/60 font-mono">
+                        {Object.entries(result.all_metrics).map(([mName, mVal]: [string, any]) => (
+                          <tr key={mName} className={mName === result.model_used ? 'bg-amber-500/10 text-amber-300 font-bold' : ''}>
+                            <td className="p-2 font-sans font-semibold flex items-center gap-1">
+                              {mName} {mName === result.model_used && <span className="text-[9px] bg-amber-500 text-black px-1.5 py-0.5 rounded font-black uppercase">Selected</span>}
+                            </td>
+                            <td className="p-2 text-right">{(mVal.accuracy * 100).toFixed(1)}%</td>
+                            <td className="p-2 text-right">{(mVal.precision * 100).toFixed(1)}%</td>
+                            <td className="p-2 text-right">{(mVal.recall * 100).toFixed(1)}%</td>
+                            <td className="p-2 text-right font-bold">{(mVal.f1_score * 100).toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Fake News Risk Meter */}

@@ -1,0 +1,69 @@
+{
+  "best_model": "Multinomial Naive Bayes",
+  "best_f1_score": 1.0,
+  "total_samples": 300,
+  "train_samples": 240,
+  "test_samples": 60,
+  "all_metrics": {
+    "Multinomial Naive Bayes": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "hyperparameters": {
+        "alpha": 1.0
+      }
+    },
+    "Linear SVM": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "hyperparameters": {
+        "C": 1.0,
+        "random_state": 42
+      }
+    },
+    "Random Forest": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "hyperparameters": {
+        "n_estimators": 100,
+        "max_depth": 20,
+        "random_state": 42
+      }
+    }
+  }
+}
