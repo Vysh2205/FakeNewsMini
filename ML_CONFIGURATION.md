@@ -8,12 +8,12 @@ This document contains the actual, computed experimental configuration and bench
 
 * **Dataset Name**: FakeBuster Benchmark Fake News Dataset
 * **Dataset Source**: Compiled from benchmark corpora (ISOT, WELFake, Reuters, AP News)
-* **Total Samples**: 300
-* **Training Samples**: 240 (80%)
-* **Testing Samples**: 60 (20%)
+* **Total Samples**: 340
+* **Training Samples**: 272 (80%)
+* **Testing Samples**: 68 (20%)
 * **Positive Class (1)**: Fake News
 * **Negative Class (0)**: Real News
-* **Class Distribution**: Real News: 150 (50.0%) | Fake News: 150 (50.0%)
+* **Class Distribution**: Real News: 170 (50.0%) | Fake News: 170 (50.0%)
 
 ---
 
@@ -32,7 +32,7 @@ TfidfVectorizer(
 * **N-Gram Range**: (1, 2) [Unigrams & Bigrams]
 * **Stop Words**: English
 * **Min Document Frequency**: 2
-* **Extracted Vocabulary Size**: 1544 features
+* **Extracted Vocabulary Size**: 1723 features
 
 ---
 

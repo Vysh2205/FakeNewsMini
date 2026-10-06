@@ -293,6 +293,10 @@ export default function App() {
                     <span className="mx-3 text-zinc-600">|</span>
                     Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
                   </p>
+
+                  <p className="text-xs text-zinc-400 bg-zinc-950/60 border border-zinc-800/80 p-2.5 rounded-xl mt-3">
+                    <strong>Disclaimer:</strong> FakeBuster is an AI-based decision-support tool. Predictions and confidence scores represent classification probabilities based on training patterns and do not guarantee absolute factual truth.
+                  </p>
                 </div>
               </div>
 
@@ -333,8 +337,8 @@ export default function App() {
             {/* Fake News Risk Meter */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-6">
               <div className="flex justify-between items-center border-b border-zinc-800/60 pb-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">1. Fake News Risk Meter Breakdown</h3>
-                <span className="text-xs text-zinc-500">Multi-metric evaluation</span>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">1. Supporting Risk Indicators (Heuristic Measures)</h3>
+                <span className="text-xs text-zinc-500">Heuristic Signal Indicators</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">

@@ -1,62 +1,108 @@
 {
-  "Multinomial Naive Bayes": {
-    "accuracy": 1.0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1_score": 1.0,
-    "confusion_matrix": [
-      [
-        30,
-        0
-      ],
-      [
-        0,
-        30
-      ]
-    ],
-    "hyperparameters": {
-      "alpha": 1.0
-    }
+  "dataset_name": "FakeBuster Benchmark Fake News Dataset",
+  "dataset_source": "Compiled from benchmark corpora (ISOT, WELFake, Reuters, AP News)",
+  "total_records": 300,
+  "fake_records": 150,
+  "real_records": 150,
+  "training_records": 240,
+  "testing_records": 60,
+  "tfidf_config": {
+    "max_features": 5000,
+    "ngram_range": "(1, 2)",
+    "stop_words": "english",
+    "min_df": 2
   },
-  "Linear SVM": {
-    "accuracy": 1.0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1_score": 1.0,
-    "confusion_matrix": [
-      [
-        30,
-        0
+  "best_model": "Multinomial Naive Bayes",
+  "best_f1_score": 0.9836,
+  "all_metrics": {
+    "Multinomial Naive Bayes": {
+      "accuracy": 0.9833,
+      "precision": 0.9677,
+      "recall": 1.0,
+      "f1_score": 0.9836,
+      "confusion_matrix": [
+        [
+          29,
+          1
+        ],
+        [
+          0,
+          30
+        ]
       ],
-      [
-        0,
-        30
-      ]
-    ],
-    "hyperparameters": {
-      "C": 1.0,
-      "random_state": 42
-    }
-  },
-  "Random Forest": {
-    "accuracy": 1.0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1_score": 1.0,
-    "confusion_matrix": [
-      [
-        30,
-        0
+      "hyperparameters": {
+        "alpha": 1.0,
+        "class_prior": null,
+        "fit_prior": true,
+        "force_alpha": true
+      }
+    },
+    "Linear SVM": {
+      "accuracy": 0.9833,
+      "precision": 0.9677,
+      "recall": 1.0,
+      "f1_score": 0.9836,
+      "confusion_matrix": [
+        [
+          29,
+          1
+        ],
+        [
+          0,
+          30
+        ]
       ],
-      [
-        0,
-        30
-      ]
-    ],
-    "hyperparameters": {
-      "n_estimators": 100,
-      "max_depth": 20,
-      "random_state": 42
+      "hyperparameters": {
+        "C": 1.0,
+        "class_weight": null,
+        "dual": "auto",
+        "fit_intercept": true,
+        "intercept_scaling": 1,
+        "loss": "squared_hinge",
+        "max_iter": 1000,
+        "multi_class": "ovr",
+        "penalty": "l2",
+        "random_state": 42,
+        "tol": 0.0001,
+        "verbose": 0
+      }
+    },
+    "Random Forest": {
+      "accuracy": 0.95,
+      "precision": 0.9655,
+      "recall": 0.9333,
+      "f1_score": 0.9492,
+      "confusion_matrix": [
+        [
+          29,
+          1
+        ],
+        [
+          2,
+          28
+        ]
+      ],
+      "hyperparameters": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "class_weight": null,
+        "criterion": "gini",
+        "max_depth": 20,
+        "max_features": "sqrt",
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 1,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 100,
+        "n_jobs": null,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+      }
     }
   }
 }
