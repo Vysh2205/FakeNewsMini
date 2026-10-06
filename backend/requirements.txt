@@ -7,6 +7,9 @@ python-jose[cryptography]
 passlib[bcrypt]
 transformers
 torch
+scikit-learn
+joblib
+numpy
 newspaper3k
 beautifulsoup4
 python-multipart
@@ -17,4 +20,5 @@ Pillow
 pytesseract
 opencv-python-headless
 requests
+
 

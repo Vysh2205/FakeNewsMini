@@ -8,19 +8,31 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from scraper import scrape_article
-from ml_service import analyze_text_with_ai
-from database import get_db, engine
-import models
+try:
+    from scraper import scrape_article
+    from ml_service import analyze_text_with_ai
+    from database import get_db, engine
+    import models
+    from services.language_service import detect_and_translate
+    from services.claim_extraction import extract_claims
+    from services.fact_check_service import search_fact_checks
+    from services.evidence_service import search_evidence
+    from services.source_credibility import evaluate_source
+    from services.image_verification import process_image_file
+    from services.video_verification import process_video_file
+except ImportError:
+    from backend.scraper import scrape_article
+    from backend.ml_service import analyze_text_with_ai
+    from backend.database import get_db, engine
+    import backend.models as models
+    from backend.services.language_service import detect_and_translate
+    from backend.services.claim_extraction import extract_claims
+    from backend.services.fact_check_service import search_fact_checks
+    from backend.services.evidence_service import search_evidence
+    from backend.services.source_credibility import evaluate_source
+    from backend.services.image_verification import process_image_file
+    from backend.services.video_verification import process_video_file
 
-# Import modular services
-from services.language_service import detect_and_translate
-from services.claim_extraction import extract_claims
-from services.fact_check_service import search_fact_checks
-from services.evidence_service import search_evidence
-from services.source_credibility import evaluate_source
-from services.image_verification import process_image_file
-from services.video_verification import process_video_file
 
 from sqlalchemy import text
 
