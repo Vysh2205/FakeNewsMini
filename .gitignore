@@ -4,3 +4,6 @@ dist/
 __pycache__/
 venv/
 *.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
