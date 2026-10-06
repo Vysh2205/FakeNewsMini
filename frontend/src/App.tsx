@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ShieldAlert, ShieldCheck, Search, Activity, Link as LinkIcon, Download, 
-  BarChart2, FileText, Image as ImageIcon, HelpCircle, History as HistoryIcon,
+  BarChart2, FileText, Image as ImageIcon, History as HistoryIcon,
   ExternalLink, Globe, AlertTriangle, Info, Upload
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -161,13 +161,6 @@ export default function App() {
             className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
           >
             <BarChart2 size={16} /> Analytics
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('workflow')} 
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'workflow' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
-          >
-            <HelpCircle size={16} /> How It Works
           </button>
         </div>
 
@@ -605,39 +598,6 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* How It Works Workflow Tab */}
-        {activeTab === 'workflow' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-2xl space-y-8">
-            <h2 className="text-2xl font-black text-white text-center">FakeBuster AI Pipeline Workflow</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
-              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
-                <span className="text-2xl">📥</span>
-                <h4 className="font-bold text-amber-400">1. Multimodal Input</h4>
-                <p className="text-xs text-zinc-400">User submits Text, URL, Image, or Video clip.</p>
-              </div>
-
-              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
-                <span className="text-2xl">🔍</span>
-                <h4 className="font-bold text-amber-400">2. Extraction & OCR</h4>
-                <p className="text-xs text-zinc-400">Scrapes text, extracts EXIF metadata, frame OCR, & speech transcripts.</p>
-              </div>
-
-              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
-                <span className="text-2xl">🌐</span>
-                <h4 className="font-bold text-amber-400">3. Language & Claims</h4>
-                <p className="text-xs text-zinc-400">Detects language (English, Hindi, Telugu) & isolates factual claims.</p>
-              </div>
-
-              <div className="p-5 bg-zinc-950/80 border border-zinc-800 rounded-xl space-y-2">
-                <span className="text-2xl">🤖</span>
-                <h4 className="font-bold text-amber-400">4. AI Analysis & Evidence</h4>
-                <p className="text-xs text-zinc-400">RoBERTa model evaluation, fact-check search, & risk meter score.</p>
               </div>
             </div>
           </motion.div>

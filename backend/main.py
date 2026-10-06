@@ -185,7 +185,8 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
 
-    report = build_verification_report(res["ocr_text"], media_path=res["media_url"], content_type="image", db=db)
+    text_to_verify = res["ocr_text"] if (res["ocr_text"] and "No text overlay" not in res["ocr_text"]) else f"Media claim in image file {file.filename}"
+    report = build_verification_report(text_to_verify, media_path=res["media_url"], content_type="image", db=db)
     report["image_metadata"] = res["metadata"]
     report["ocr_text"] = res["ocr_text"]
     report["limitations"] = res["limitations"]
@@ -199,7 +200,8 @@ def verify_video(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
 
-    report = build_verification_report(res["ocr_text"], media_path=res["media_url"], content_type="video", db=db)
+    text_to_verify = res["ocr_text"] if (res["ocr_text"] and "No text overlay" not in res["ocr_text"]) else f"Media claim in video file {file.filename}"
+    report = build_verification_report(text_to_verify, media_path=res["media_url"], content_type="video", db=db)
     report["video_metadata"] = res["metadata"]
     report["extracted_frames"] = res["extracted_frames"]
     report["speech_transcript"] = res["speech_transcript"]
