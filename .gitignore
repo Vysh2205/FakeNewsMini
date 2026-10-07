@@ -4,6 +4,6 @@ dist/
 __pycache__/
 venv/
 *.db
+cloudflared.exe
 backend/uploads/*
 !backend/uploads/.gitkeep
-
