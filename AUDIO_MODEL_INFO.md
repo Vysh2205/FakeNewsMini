@@ -1,6 +1,6 @@
 # AUDIO_MODEL_INFO.md - Audio Deepfake Verification Model Documentation
 
-This document contains the academic documentation and experimental benchmarks for the **FakeBuster Audio Deepfake Verification Engine**.
+This document contains the academic documentation, tuned hyper-parameters, and feature weights for the **FakeBuster Audio Deepfake Verification Engine**.
 
 ---
 
@@ -16,19 +16,39 @@ This document contains the academic documentation and experimental benchmarks fo
 
 ---
 
-## 2. Audio Processing & Feature Extraction
+## 2. Model Parameters & Hyperparameter Tuning
 
-The pipeline extracts **39 acoustic feature metrics** per audio file using `librosa` and `scipy`:
+The audio verification pipeline employs a **Tuned Random Forest Ensemble** with balanced class weighting:
 
-1. **MFCC (Mel-Frequency Cepstral Coefficients)**: 20 mean coefficients and 10 variance coefficients capturing vocal tract geometry and formant resonances.
-2. **Spectral Centroid**: Measures brightness and spectral center-of-mass (mean & std).
-3. **Zero Crossing Rate (ZCR)**: Measures signal sign changes to detect high-frequency synthetic artifacts and noise discontinuities.
-4. **Chroma Pitch Features**: Pitch class energy distribution (mean & std).
-5. **Spectral Rolloff & Bandwidth**: Measures high-frequency energy cutoffs characteristic of neural vocoders and voice conversion models.
+* **Number of Trees (`n_estimators`)**: `200`
+* **Maximum Tree Depth (`max_depth`)**: `12`
+* **Minimum Split Samples (`min_samples_split`)**: `4`
+* **Class Weighting (`class_weight`)**: `"balanced"`
+* **Feature Normalization**: Fitted `StandardScaler` (applied strictly to training split)
 
 ---
 
-## 3. Classifier Performance Comparison (Unseen Test Set: 60 samples)
+## 3. Acoustic Feature Importances & Weights
+
+Top 10 acoustic feature weights calculated by Random Forest mean decrease in impurity (MDI):
+
+| Feature Name | Feature Importance Weight (%) |
+| :--- | :---: |
+| `mfcc_mean_1` | 20.55% |
+| `spec_centroid_std` | 14.45% |
+| `mfcc_std_1` | 11.90% |
+| `mfcc_std_2` | 8.52% |
+| `mfcc_std_5` | 6.51% |
+| `mfcc_std_8` | 5.65% |
+| `mfcc_std_7` | 4.94% |
+| `chroma_std` | 4.32% |
+| `mfcc_std_4` | 4.02% |
+| `mfcc_std_10` | 4.02% |
+
+
+---
+
+## 4. Classifier Performance Comparison (Unseen Test Set: 60 samples)
 
 | Model | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) |
 | :--- | :---: | :---: | :---: | :---: |
@@ -38,7 +58,7 @@ The pipeline extracts **39 acoustic feature metrics** per audio file using `libr
 
 ---
 
-## 4. Best Model & Saved Artifacts
+## 5. Best Model & Saved Artifacts
 
 * **Selected Best Model**: **Random Forest Classifier**
 * **Selection Metric**: Highest Test F1-Score (**100.00%**)

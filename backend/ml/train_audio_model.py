@@ -48,11 +48,13 @@ def train_and_evaluate_audio_model():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # Define Classifiers
+    # Define Classifiers with Tuned Hyperparameters & Balanced Class Weights
     classifiers = {
-        "Random Forest Classifier": RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42),
-        "Linear SVM": LinearSVC(C=1.0, random_state=42),
-        "Gaussian Naive Bayes": GaussianNB()
+        "Random Forest Classifier": RandomForestClassifier(
+            n_estimators=200, max_depth=12, min_samples_split=4, min_samples_leaf=2, random_state=42, class_weight="balanced"
+        ),
+        "Linear SVM": LinearSVC(C=0.8, max_iter=2000, random_state=42),
+        "Gaussian Naive Bayes": GaussianNB(var_smoothing=1e-8)
     }
 
     all_metrics = {}
@@ -86,6 +88,17 @@ def train_and_evaluate_audio_model():
     best_model = fitted_models[best_name]
     best_f1 = all_metrics[best_name]["f1_score"]
 
+    # Compute Feature Importances (if available)
+    feature_ranking = []
+    if hasattr(best_model, "feature_importances_"):
+        importances = best_model.feature_importances_
+        sorted_indices = np.argsort(importances)[::-1]
+        for idx in sorted_indices[:10]:
+            feature_ranking.append({
+                "feature": feature_cols[idx],
+                "importance": round(float(importances[idx]), 4)
+            })
+
     print(f"\n[4/5] Best Performing Audio Model: '{best_name}' (F1-Score: {best_f1*100:.2f}%)")
 
     # Save Model, Scaler, and Metrics
@@ -105,13 +118,13 @@ def train_and_evaluate_audio_model():
         "training_samples": len(X_train),
         "testing_samples": len(X_test),
         "feature_count": len(feature_cols),
-        "features_extracted": [
-            "MFCC (20 coefficients: mean & std)",
-            "Spectral Centroid (mean & std)",
-            "Zero Crossing Rate (ZCR mean & std)",
-            "Chroma Pitch Features (mean & std)",
-            "Spectral Rolloff & Spectral Bandwidth"
-        ],
+        "hyperparameters": {
+            "n_estimators": 200,
+            "max_depth": 12,
+            "min_samples_split": 4,
+            "class_weight": "balanced"
+        },
+        "top_features": feature_ranking,
         "best_model": best_name,
         "best_f1_score": round(best_f1, 4),
         "all_metrics": all_metrics
@@ -133,10 +146,15 @@ def generate_audio_documentation(info):
 
     m = info["all_metrics"]
     best_name = info["best_model"]
+    top_feats = info.get("top_features", [])
+
+    feat_table_rows = ""
+    for f in top_feats:
+        feat_table_rows += f"| `{f['feature']}` | {f['importance']*100:.2f}% |\n"
 
     content = f"""# AUDIO_MODEL_INFO.md - Audio Deepfake Verification Model Documentation
 
-This document contains the academic documentation and experimental benchmarks for the **FakeBuster Audio Deepfake Verification Engine**.
+This document contains the academic documentation, tuned hyper-parameters, and feature weights for the **FakeBuster Audio Deepfake Verification Engine**.
 
 ---
 
@@ -152,19 +170,29 @@ This document contains the academic documentation and experimental benchmarks fo
 
 ---
 
-## 2. Audio Processing & Feature Extraction
+## 2. Model Parameters & Hyperparameter Tuning
 
-The pipeline extracts **{info['feature_count']} acoustic feature metrics** per audio file using `librosa` and `scipy`:
+The audio verification pipeline employs a **Tuned Random Forest Ensemble** with balanced class weighting:
 
-1. **MFCC (Mel-Frequency Cepstral Coefficients)**: 20 mean coefficients and 10 variance coefficients capturing vocal tract geometry and formant resonances.
-2. **Spectral Centroid**: Measures brightness and spectral center-of-mass (mean & std).
-3. **Zero Crossing Rate (ZCR)**: Measures signal sign changes to detect high-frequency synthetic artifacts and noise discontinuities.
-4. **Chroma Pitch Features**: Pitch class energy distribution (mean & std).
-5. **Spectral Rolloff & Bandwidth**: Measures high-frequency energy cutoffs characteristic of neural vocoders and voice conversion models.
+* **Number of Trees (`n_estimators`)**: `200`
+* **Maximum Tree Depth (`max_depth`)**: `12`
+* **Minimum Split Samples (`min_samples_split`)**: `4`
+* **Class Weighting (`class_weight`)**: `"balanced"`
+* **Feature Normalization**: Fitted `StandardScaler` (applied strictly to training split)
 
 ---
 
-## 3. Classifier Performance Comparison (Unseen Test Set: {info['testing_samples']} samples)
+## 3. Acoustic Feature Importances & Weights
+
+Top 10 acoustic feature weights calculated by Random Forest mean decrease in impurity (MDI):
+
+| Feature Name | Feature Importance Weight (%) |
+| :--- | :---: |
+{feat_table_rows}
+
+---
+
+## 4. Classifier Performance Comparison (Unseen Test Set: {info['testing_samples']} samples)
 
 | Model | Accuracy (%) | Precision (%) | Recall (%) | F1-Score (%) |
 | :--- | :---: | :---: | :---: | :---: |
@@ -174,7 +202,7 @@ The pipeline extracts **{info['feature_count']} acoustic feature metrics** per a
 
 ---
 
-## 4. Best Model & Saved Artifacts
+## 5. Best Model & Saved Artifacts
 
 * **Selected Best Model**: **{best_name}**
 * **Selection Metric**: Highest Test F1-Score (**{m[best_name]['f1_score']*100:.2f}%**)

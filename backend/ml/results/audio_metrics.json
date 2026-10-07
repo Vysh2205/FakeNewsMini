@@ -7,12 +7,53 @@
   "training_samples": 240,
   "testing_samples": 60,
   "feature_count": 39,
-  "features_extracted": [
-    "MFCC (20 coefficients: mean & std)",
-    "Spectral Centroid (mean & std)",
-    "Zero Crossing Rate (ZCR mean & std)",
-    "Chroma Pitch Features (mean & std)",
-    "Spectral Rolloff & Spectral Bandwidth"
+  "hyperparameters": {
+    "n_estimators": 200,
+    "max_depth": 12,
+    "min_samples_split": 4,
+    "class_weight": "balanced"
+  },
+  "top_features": [
+    {
+      "feature": "mfcc_mean_1",
+      "importance": 0.2055
+    },
+    {
+      "feature": "spec_centroid_std",
+      "importance": 0.1445
+    },
+    {
+      "feature": "mfcc_std_1",
+      "importance": 0.119
+    },
+    {
+      "feature": "mfcc_std_2",
+      "importance": 0.0852
+    },
+    {
+      "feature": "mfcc_std_5",
+      "importance": 0.0651
+    },
+    {
+      "feature": "mfcc_std_8",
+      "importance": 0.0565
+    },
+    {
+      "feature": "mfcc_std_7",
+      "importance": 0.0494
+    },
+    {
+      "feature": "chroma_std",
+      "importance": 0.0432
+    },
+    {
+      "feature": "mfcc_std_4",
+      "importance": 0.0402
+    },
+    {
+      "feature": "mfcc_std_10",
+      "importance": 0.0402
+    }
   ],
   "best_model": "Random Forest Classifier",
   "best_f1_score": 1.0,
