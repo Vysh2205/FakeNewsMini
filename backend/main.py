@@ -213,6 +213,10 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # Register in DB history
     try:
         verification_id = f"v_{uuid.uuid4().hex[:8]}"
+        is_fk = res.get("is_fake", False)
+        conf = res.get("confidence", 0.0)
+        pred = res.get("prediction", "UNAVAILABLE")
+        expl = res.get("explanation", res.get("message", ""))
         history_record = models.AnalysisHistory(
             verification_id=verification_id,
             user_id=1,
@@ -220,13 +224,13 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
             content=f"Image file {file.filename}",
             title=f"Image Inspection: {file.filename}",
             source_domain="Direct Upload",
-            is_fake=False,
-            confidence_score=0.0,
-            verdict="UNAVAILABLE",
-            overall_risk=0,
+            is_fake=is_fk,
+            confidence_score=conf,
+            verdict=pred,
+            overall_risk=int(conf * 100) if is_fk else int((1.0 - conf) * 100),
             language="English",
-            media_path=res["media_url"],
-            explanation=res["message"],
+            media_path=res.get("media_url", ""),
+            explanation=expl,
             details_json=json.dumps(res)
         )
         db.add(history_record)

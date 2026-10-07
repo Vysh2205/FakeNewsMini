@@ -1,93 +1,157 @@
 import os
+import io
+import pickle
 import numpy as np
-import pandas as pd
+import cv2
+from PIL import Image, ImageDraw, ImageFilter
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-def generate_image_dataset():
-    dataset_dir = os.path.join(os.path.dirname(__file__), "dataset")
-    dataset_path = os.path.join(dataset_dir, "image_forensic_dataset.csv")
-    os.makedirs(dataset_dir, exist_ok=True)
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-    np.random.seed(42)
-    n_real = 150
-    n_fake = 150
-    n_total = n_real + n_fake
+def extract_image_features(file_bytes: bytes):
+    """
+    Extracts multi-domain image forensic features:
+    1. Error Level Analysis (ELA) statistics (mean, std, max)
+    2. Spatial 2D FFT High-to-Low frequency energy ratio
+    3. Laplacian optical variance (focus & blur consistency)
+    4. High-pass sensor noise variance (PRNU pattern approximation)
+    5. Color Saturation distribution statistics
+    """
+    pil_img = Image.open(io.BytesIO(file_bytes)).convert('RGB')
+    img_np = np.array(pil_img)
+    height, width, channels = img_np.shape
 
-    # Feature columns: ELA stats, RGB stats, Laplacian variance, FFT noise ratio, Color covariance, Exif indicator
-    feature_names = [
-        "ela_mean", "ela_std", "ela_max",
-        "r_mean", "r_std", "g_mean", "g_std", "b_mean", "b_std",
-        "rg_cov", "gb_cov", "rb_cov",
-        "laplacian_var", "fft_high_freq_energy", "noise_residual_std",
-        "exif_present", "aspect_ratio", "width", "height"
+    # 1. Error Level Analysis (ELA) at 90% JPEG quality
+    buf = io.BytesIO()
+    pil_img.save(buf, format='JPEG', quality=90)
+    buf.seek(0)
+    ela_img = Image.open(buf).convert('RGB')
+    ela_np = np.array(ela_img)
+
+    ela_diff = np.abs(img_np.astype(np.float32) - ela_np.astype(np.float32))
+    ela_mean = float(np.mean(ela_diff))
+    ela_std = float(np.std(ela_diff))
+    ela_max = float(np.max(ela_diff))
+
+    # 2. 2D FFT Spatial Frequency Energy Ratio
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+    f = np.fft.fft2(gray.astype(np.float32))
+    fshift = np.fft.fftshift(f)
+    magnitude_spectrum = np.log(np.abs(fshift) + 1e-8)
+
+    cy, cx = height // 2, width // 2
+    r = max(10, min(height, width) // 8)
+    y, x = np.ogrid[:height, :width]
+    mask_low = (x - cx)**2 + (y - cy)**2 <= r**2
+
+    low_freq_energy = float(np.mean(magnitude_spectrum[mask_low]))
+    high_freq_energy = float(np.mean(magnitude_spectrum[~mask_low]))
+    freq_ratio = float(high_freq_energy / (low_freq_energy + 1e-8))
+
+    # 3. Optical Focus & Edge Sharpness (Laplacian)
+    laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    # 4. Sensor PRNU High-pass Noise Estimation
+    blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    noise_residual = gray.astype(np.float32) - blur_gray.astype(np.float32)
+    noise_std = float(np.std(noise_residual))
+
+    # 5. HSV Saturation Distribution
+    hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
+    sat = hsv[:, :, 1].astype(np.float32)
+    sat_mean = float(np.mean(sat))
+    sat_std = float(np.std(sat))
+
+    features = [
+        ela_mean, ela_std, ela_max,
+        freq_ratio, high_freq_energy, low_freq_energy,
+        laplacian_var, noise_std,
+        sat_mean, sat_std
     ]
+    return np.array(features, dtype=np.float32), (height, width, channels)
 
-    data = []
+def generate_synthetic_benchmark_dataset():
+    X = []
+    y = []
+    np.random.seed(42)
 
-    # 1. Generate Real Camera Photos & Human Portraits (Label = 0: REAL)
-    # Real photos & passport portraits: organic skin tones, ELA mean 2.5-35.0, laplacian var 25-3000, color std 20-60
-    for i in range(n_real):
-        row = {}
-        row["ela_mean"] = float(np.random.normal(12.0, 5.0))
-        row["ela_std"] = float(np.random.normal(8.0, 3.0))
-        row["ela_max"] = float(np.random.normal(120.0, 30.0))
+    # 60 Genuine Camera Photo Samples (Class 0: REAL)
+    for _ in range(60):
+        w, h = 400, 400
+        base = np.random.randint(40, 220, (h, w, 3), dtype=np.uint8)
+        noise = np.random.normal(0, np.random.uniform(5, 15), (h, w, 3)).astype(np.int16)
+        real_img_np = np.clip(base.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+        
+        pil = Image.fromarray(real_img_np)
+        buf = io.BytesIO()
+        pil.save(buf, format="JPEG", quality=np.random.randint(85, 98))
+        feat, _ = extract_image_features(buf.getvalue())
+        X.append(feat)
+        y.append(0)  # 0 = REAL
 
-        row["r_mean"] = float(np.random.normal(135.0, 30.0))
-        row["r_std"] = float(np.random.normal(45.0, 12.0))
-        row["g_mean"] = float(np.random.normal(115.0, 25.0))
-        row["g_std"] = float(np.random.normal(38.0, 10.0))
-        row["b_mean"] = float(np.random.normal(105.0, 28.0))
-        row["b_std"] = float(np.random.normal(35.0, 11.0))
+    # 60 Deepfake / Manipulated Samples (Class 1: FAKE)
+    for _ in range(60):
+        w, h = 400, 400
+        base = np.zeros((h, w, 3), dtype=np.uint8)
+        base[:, :, 0] = np.linspace(50, 200, w, dtype=np.uint8)
+        base[:, :, 1] = np.linspace(200, 50, h, dtype=np.uint8)[:, None]
+        base[:, :, 2] = 128
+        
+        pil = Image.fromarray(base).filter(ImageFilter.GaussianBlur(radius=np.random.uniform(2, 5)))
+        draw = ImageDraw.Draw(pil)
+        draw.rectangle([w//4, h//4, 3*w//4, 3*h//4], fill=(255, 0, 128))
+        
+        buf = io.BytesIO()
+        pil.save(buf, format="JPEG", quality=70)
+        feat, _ = extract_image_features(buf.getvalue())
+        X.append(feat)
+        y.append(1)  # 1 = FAKE
 
-        row["rg_cov"] = float(np.random.normal(1800.0, 500.0))
-        row["gb_cov"] = float(np.random.normal(1600.0, 450.0))
-        row["rb_cov"] = float(np.random.normal(1700.0, 480.0))
+    return np.array(X), np.array(y)
 
-        row["laplacian_var"] = float(np.random.normal(450.0, 300.0))
-        row["fft_high_freq_energy"] = float(np.random.normal(0.08, 0.03))
-        row["noise_residual_std"] = float(np.random.normal(18.0, 5.0))
+def train_and_save_image_model():
+    print("Generating Image Forensics Training Benchmark...", flush=True)
+    X, y = generate_synthetic_benchmark_dataset()
 
-        row["exif_present"] = 1.0 if np.random.rand() > 0.6 else 0.0
-        row["aspect_ratio"] = float(np.random.choice([0.75, 1.0, 1.33, 1.5, 1.77]))
-        row["width"] = float(np.random.normal(1024.0, 300.0))
-        row["height"] = float(np.random.normal(1024.0, 300.0))
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)
 
-        row["label"] = 0  # 0 = REAL
-        data.append(row)
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
-    # 2. Generate Manipulated / AI Deepfake Images (Label = 1: FAKE)
-    # AI/Manipulated images: Abnormally flat ELA (< 0.5), artificial zero variance (< 4.0), high frequency FFT grid noise (> 0.45)
-    for i in range(n_fake):
-        row = {}
-        row["ela_mean"] = float(np.random.normal(0.2, 0.1))       # Ultra-flat AI generated ELA
-        row["ela_std"] = float(np.random.normal(0.1, 0.05))
-        row["ela_max"] = float(np.random.normal(8.0, 3.0))
+    clf = RandomForestClassifier(n_estimators=50, random_state=42, max_depth=8)
+    clf.fit(X_train_scaled, y_train)
 
-        row["r_mean"] = float(np.random.normal(140.0, 30.0))
-        row["r_std"] = float(np.random.normal(3.5, 1.0))         # Artificial flat color variance
-        row["g_mean"] = float(np.random.normal(135.0, 28.0))
-        row["g_std"] = float(np.random.normal(3.0, 0.8))
-        row["b_mean"] = float(np.random.normal(130.0, 32.0))
-        row["b_std"] = float(np.random.normal(2.5, 0.7))
+    y_pred = clf.predict(X_test_scaled)
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred)
 
-        row["rg_cov"] = float(np.random.normal(50.0, 15.0))
-        row["gb_cov"] = float(np.random.normal(40.0, 12.0))
-        row["rb_cov"] = float(np.random.normal(45.0, 14.0))
+    print(f"Model Training Complete!", flush=True)
+    print(f"Accuracy:  {acc * 100:.2f}%", flush=True)
+    print(f"Precision: {prec * 100:.2f}%", flush=True)
+    print(f"Recall:    {rec * 100:.2f}%", flush=True)
+    print(f"F1 Score:  {f1 * 100:.2f}%", flush=True)
 
-        row["laplacian_var"] = float(np.random.normal(5.0, 1.5))     # Synthetic grid flat residual
-        row["fft_high_freq_energy"] = float(np.random.normal(0.55, 0.08)) # High frequency grid noise
-        row["noise_residual_std"] = float(np.random.normal(1.2, 0.4))
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+    os.makedirs(models_dir, exist_ok=True)
 
-        row["exif_present"] = 0.0
-        row["aspect_ratio"] = float(np.random.choice([1.0, 1.33]))
-        row["width"] = float(np.random.normal(1024.0, 100.0))
-        row["height"] = float(np.random.normal(1024.0, 100.0))
+    model_path = os.path.join(models_dir, "image_classifier.pkl")
+    scaler_path = os.path.join(models_dir, "image_scaler.pkl")
 
-        row["label"] = 1  # 1 = FAKE
-        data.append(row)
+    with open(model_path, "wb") as f:
+        pickle.dump(clf, f)
 
-    df = pd.DataFrame(data)
-    df.to_csv(dataset_path, index=False)
-    print(f"Image Forensic Dataset generated at {dataset_path} with {len(df)} samples ({n_real} Real, {n_fake} Deepfake/Manipulated).")
+    with open(scaler_path, "wb") as f:
+        pickle.dump(scaler, f)
+
+    print(f"Saved image model to: {model_path}", flush=True)
+    print(f"Saved scaler to: {scaler_path}", flush=True)
 
 if __name__ == "__main__":
-    generate_image_dataset()
+    train_and_save_image_model()
