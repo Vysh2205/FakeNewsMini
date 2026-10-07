@@ -295,6 +295,7 @@ export default function App() {
             
             {/* PROMINENT TOP VERDICT BANNER */}
             <div className={`p-8 rounded-2xl border backdrop-blur-xl relative overflow-hidden ${
+              (result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? 'bg-amber-950/40 border-amber-500/60' :
               result.verdict_type === 'FAKE' ? 'bg-red-950/30 border-red-500/50' :
               result.verdict_type === 'UNCERTAIN' ? 'bg-amber-950/30 border-amber-500/50' :
               'bg-emerald-950/30 border-emerald-500/50'
@@ -303,18 +304,19 @@ export default function App() {
                 <Download size={14} /> Export Report
               </button>
 
-              <div className="flex items-center gap-6">
-                {result.verdict_type === 'FAKE' && <ShieldAlert className="w-20 h-20 text-red-500 shrink-0" />}
-                {result.verdict_type === 'REAL' && <ShieldCheck className="w-20 h-20 text-emerald-500 shrink-0" />}
-                {result.verdict_type === 'UNCERTAIN' && <AlertTriangle className="w-20 h-20 text-amber-500 shrink-0" />}
+              <div className="flex items-start md:items-center gap-6 flex-col md:flex-row">
+                {(result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') && <AlertTriangle className="w-16 h-16 md:w-20 md:h-20 text-amber-400 shrink-0" />}
+                {result.verdict_type === 'FAKE' && <ShieldAlert className="w-16 h-16 md:w-20 md:h-20 text-red-500 shrink-0" />}
+                {result.verdict_type === 'REAL' && <ShieldCheck className="w-16 h-16 md:w-20 md:h-20 text-emerald-500 shrink-0" />}
+                {result.verdict_type === 'UNCERTAIN' && <AlertTriangle className="w-16 h-16 md:w-20 md:h-20 text-amber-500 shrink-0" />}
 
-                <div>
+                <div className="flex-1">
                   <div className="flex gap-2 mb-2 flex-wrap">
                     <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border" style={{
-                      borderColor: result.verdict_type === 'FAKE' ? '#ef4444' : result.verdict_type === 'UNCERTAIN' ? '#f59e0b' : '#10b981',
-                      color: result.verdict_type === 'FAKE' ? '#fca5a5' : result.verdict_type === 'UNCERTAIN' ? '#fde68a' : '#a7f3d0'
+                      borderColor: (result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? '#f59e0b' : result.verdict_type === 'FAKE' ? '#ef4444' : result.verdict_type === 'UNCERTAIN' ? '#f59e0b' : '#10b981',
+                      color: (result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? '#fde68a' : result.verdict_type === 'FAKE' ? '#fca5a5' : result.verdict_type === 'UNCERTAIN' ? '#fde68a' : '#a7f3d0'
                     }}>
-                      PREDICTION: {result.prediction ? result.prediction.toUpperCase() : (result.is_fake ? 'FAKE' : 'REAL')}
+                      PREDICTION: {result.status === 'unavailable' || result.verdict_type === 'UNAVAILABLE' ? 'MODEL UNAVAILABLE' : (result.prediction ? result.prediction.toUpperCase() : (result.is_fake ? 'FAKE' : 'REAL'))}
                     </span>
                     
                     {result.model_used && (
@@ -324,8 +326,10 @@ export default function App() {
                     )}
                   </div>
 
-                  <h2 className="text-3xl md:text-4xl font-black">
-                    {result.file_type && result.duration_formatted ? (
+                  <h2 className="text-2xl md:text-4xl font-black">
+                    {(result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? (
+                      'Image Verification Model Unavailable'
+                    ) : result.file_type && result.duration_formatted ? (
                       result.is_fake ? 'AI Generated Deepfake Audio Detected' : 'Real Human Voice Audio'
                     ) : (result.forensic_indicators || result.image_metadata) ? (
                       result.is_fake ? 'Manipulated / AI Deepfake Image Detected' : 'Real Genuine Camera Photo'
@@ -338,25 +342,31 @@ export default function App() {
                     )}
                   </h2>
                   
-                  <p className="text-zinc-300 text-lg mt-2">
-                    Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
-                    <span className="mx-3 text-zinc-600">|</span>
-                    Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
-                    {result.duration_formatted && (
-                      <>
-                        <span className="mx-3 text-zinc-600">|</span>
-                        Duration: <span className="font-mono font-bold text-amber-300">{result.duration_formatted}</span>
-                        <span className="mx-3 text-zinc-600">|</span>
-                        Format: <span className="font-mono font-bold uppercase text-amber-300">{result.file_type}</span>
-                      </>
-                    )}
-                    {result.overall_risk !== undefined && (
-                      <>
-                        <span className="mx-3 text-zinc-600">|</span>
-                        Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
-                      </>
-                    )}
-                  </p>
+                  {result.status === 'unavailable' ? (
+                    <div className="mt-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-sm">
+                      <p className="font-medium">{result.message || "Image verification model is currently unavailable."}</p>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-300 text-lg mt-2">
+                      Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
+                      <span className="mx-3 text-zinc-600">|</span>
+                      Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
+                      {result.duration_formatted && (
+                        <>
+                          <span className="mx-3 text-zinc-600">|</span>
+                          Duration: <span className="font-mono font-bold text-amber-300">{result.duration_formatted}</span>
+                          <span className="mx-3 text-zinc-600">|</span>
+                          Format: <span className="font-mono font-bold uppercase text-amber-300">{result.file_type}</span>
+                        </>
+                      )}
+                      {result.overall_risk !== undefined && (
+                        <>
+                          <span className="mx-3 text-zinc-600">|</span>
+                          Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
+                        </>
+                      )}
+                    </p>
+                  )}
 
                   {result.media_url && result.file_type && (
                     <div className="mt-3">
@@ -365,8 +375,23 @@ export default function App() {
                   )}
 
                   {result.media_url && !result.file_type && (
-                    <div className="mt-4 max-w-xs rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
-                      <img src={`${getApiBaseUrl()}${result.media_url}`} alt="Uploaded Verification Preview" className="w-full h-auto object-cover max-h-56" />
+                    <div className="mt-4 flex flex-col md:flex-row gap-4 items-start">
+                      <div className="max-w-xs rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 shrink-0">
+                        <img src={`${getApiBaseUrl()}${result.media_url}`} alt="Uploaded Verification Preview" className="w-full h-auto object-cover max-h-56" />
+                      </div>
+                      {result.image_metadata && (
+                        <div className="flex-1 bg-zinc-950/70 border border-zinc-800 p-4 rounded-xl text-xs space-y-2">
+                          <h4 className="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Uploaded Image Technical Metadata</h4>
+                          <div className="grid grid-cols-2 gap-2 text-zinc-300">
+                            <div><span className="text-zinc-500">Dimensions:</span> {result.image_metadata.dimensions}</div>
+                            <div><span className="text-zinc-500">Format:</span> {result.image_metadata.format}</div>
+                            <div><span className="text-zinc-500">Color Mode:</span> {result.image_metadata.mode}</div>
+                            <div><span className="text-zinc-500">File Size:</span> {result.image_metadata.file_size_mb} MB</div>
+                            {result.image_metadata.Make && <div><span className="text-zinc-500">Camera Make:</span> {result.image_metadata.Make}</div>}
+                            {result.image_metadata.Model && <div><span className="text-zinc-500">Camera Model:</span> {result.image_metadata.Model}</div>}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -410,43 +435,44 @@ export default function App() {
               )}
             </div>
 
-            {/* Fake News Risk Meter */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-6">
-              <div className="flex justify-between items-center border-b border-zinc-800/60 pb-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">1. Supporting Risk Indicators (Heuristic Measures)</h3>
-                <span className="text-xs text-zinc-500">Heuristic Signal Indicators</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-zinc-400">Clickbait Probability</span>
-                    <span className="text-zinc-200">{result.clickbait}%</span>
-                  </div>
-                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
-                    <div className="bg-amber-500 h-full rounded-lg" style={{ width: `${result.clickbait}%` }} />
-                  </div>
+            {/* Fake News Risk Meter - Suppressed for image / unavailable status */}
+            {result.clickbait !== undefined && result.status !== 'unavailable' && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 space-y-6">
+                <div className="flex justify-between items-center border-b border-zinc-800/60 pb-3">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">1. Supporting Risk Indicators (Heuristic Measures)</h3>
+                  <span className="text-xs text-zinc-500">Heuristic Signal Indicators</span>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-zinc-400">Source Reliability</span>
-                    <span className="text-zinc-200">{result.source_reliability}%</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-zinc-400">Clickbait Probability</span>
+                      <span className="text-zinc-200">{result.clickbait}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
+                      <div className="bg-amber-500 h-full rounded-lg" style={{ width: `${result.clickbait}%` }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
-                    <div className="bg-blue-500 h-full rounded-lg" style={{ width: `${result.source_reliability}%` }} />
-                  </div>
-                </div>
 
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-zinc-400">Emotional Language Intensity</span>
-                    <span className="text-zinc-200">{result.emotional_language}%</span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-zinc-400">Source Reliability</span>
+                      <span className="text-zinc-200">{result.source_reliability}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
+                      <div className="bg-blue-500 h-full rounded-lg" style={{ width: `${result.source_reliability}%` }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
-                    <div className="bg-rose-500 h-full rounded-lg" style={{ width: `${result.emotional_language}%` }} />
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-zinc-400">Emotional Language Intensity</span>
+                      <span className="text-zinc-200">{result.emotional_language}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-950 rounded-lg h-2.5 overflow-hidden border border-zinc-800">
+                      <div className="bg-rose-500 h-full rounded-lg" style={{ width: `${result.emotional_language}%` }} />
+                    </div>
                   </div>
-                </div>
 
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
@@ -459,6 +485,7 @@ export default function App() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Language & Translation Info */}
             {result.detected_language && (
@@ -491,56 +518,60 @@ export default function App() {
               </div>
             )}
 
-            {/* External Fact-Checks */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Reputable Fact-Checks</h3>
-              {result.fact_checks && result.fact_checks.length > 0 ? (
-                <div className="space-y-3">
-                  {result.fact_checks.map((fc: any, i: number) => (
-                    <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-1.5">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-amber-400">{fc.organization}</span>
-                        <span className="px-2 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300">{fc.verdict}</span>
+            {/* External Fact-Checks (Only for Text/URL or when fact checks exist) */}
+            {(result.content_type === 'text' || result.content_type === 'url' || (result.fact_checks && result.fact_checks.length > 0)) && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Reputable Fact-Checks</h3>
+                {result.fact_checks && result.fact_checks.length > 0 ? (
+                  <div className="space-y-3">
+                    {result.fact_checks.map((fc: any, i: number) => (
+                      <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-amber-400">{fc.organization}</span>
+                          <span className="px-2 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300">{fc.verdict}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-white">{fc.summary}</p>
+                        <a href={fc.source_link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
+                          Read Fact-Check <ExternalLink size={12} />
+                        </a>
                       </div>
-                      <p className="text-sm font-semibold text-white">{fc.summary}</p>
-                      <a href={fc.source_link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
-                        Read Fact-Check <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
-                  {result.fact_check_message || "No matching fact-check found."}
-                </p>
-              )}
-            </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
+                    {result.fact_check_message || "No matching fact-check found."}
+                  </p>
+                )}
+              </div>
+            )}
 
-            {/* Web Evidence */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Retrieved Evidence Sources</h3>
-              {result.evidence && result.evidence.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {result.evidence.map((ev: any, i: number) => (
-                    <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-zinc-400">{ev.source}</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ev.category === 'Contradicting' ? 'bg-red-950 text-red-400' : 'bg-emerald-950 text-emerald-400'}`}>{ev.category}</span>
+            {/* Web Evidence (Only for Text/URL or when evidence exists) */}
+            {(result.content_type === 'text' || result.content_type === 'url' || (result.evidence && result.evidence.length > 0)) && (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3">Retrieved Evidence Sources</h3>
+                {result.evidence && result.evidence.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {result.evidence.map((ev: any, i: number) => (
+                      <div key={i} className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-zinc-400">{ev.source}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ev.category === 'Contradicting' ? 'bg-red-950 text-red-400' : 'bg-emerald-950 text-emerald-400'}`}>{ev.category}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white line-clamp-1">{ev.title}</h4>
+                        <p className="text-xs text-zinc-400 line-clamp-2">{ev.snippet}</p>
+                        <a href={ev.url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
+                          Source Link <ExternalLink size={12} />
+                        </a>
                       </div>
-                      <h4 className="text-sm font-bold text-white line-clamp-1">{ev.title}</h4>
-                      <p className="text-xs text-zinc-400 line-clamp-2">{ev.snippet}</p>
-                      <a href={ev.url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1">
-                        Source Link <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
-                  {result.evidence_message || "No relevant evidence found."}
-                </p>
-              )}
-            </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500 italic p-4 bg-zinc-950/40 rounded-xl border border-zinc-800/50">
+                    {result.evidence_message || "No relevant evidence found."}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Source Credibility Card */}
             {result.source_info && (

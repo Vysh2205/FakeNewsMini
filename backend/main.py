@@ -217,16 +217,16 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
             verification_id=verification_id,
             user_id=1,
             content_type="image",
-            content=f"Image verification file {file.filename}",
-            title=f"Image Verification: {file.filename}",
+            content=f"Image file {file.filename}",
+            title=f"Image Inspection: {file.filename}",
             source_domain="Direct Upload",
-            is_fake=res["is_fake"],
-            confidence_score=res["confidence"],
-            verdict="FAKE" if res["is_fake"] else "REAL",
-            overall_risk=int(res["confidence"] * 100) if res["is_fake"] else int((1 - res["confidence"]) * 100),
+            is_fake=False,
+            confidence_score=0.0,
+            verdict="UNAVAILABLE",
+            overall_risk=0,
             language="English",
             media_path=res["media_url"],
-            explanation=f"Image forensic evaluation (Error Level Analysis ELA, color covariance, Laplacian frequency residual) evaluated using {res['model_used']}. Classification: {res['prediction']} with {res['confidence']*100:.1f}% confidence.",
+            explanation=res["message"],
             details_json=json.dumps(res)
         )
         db.add(history_record)
@@ -234,22 +234,7 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     except Exception as e:
         print(f"DB Image History Log Error: {e}")
 
-    return {
-        "prediction": res["prediction"],
-        "is_fake": res["is_fake"],
-        "verdict_type": "FAKE" if res["is_fake"] else "REAL",
-        "verdict": "FAKE" if res["is_fake"] else "REAL",
-        "confidence": res["confidence"],
-        "probabilities": res["probabilities"],
-        "label_mapping": res["label_mapping"],
-        "model_used": res["model_used"],
-        "media_url": res["media_url"],
-        "image_metadata": res["metadata"],
-        "forensic_indicators": res["forensic_indicators"],
-        "risk_indicators": res["forensic_indicators"],
-        "overall_risk": int(res["confidence"] * 100) if res["is_fake"] else int((1 - res["confidence"]) * 100),
-        "explanation": f"Image forensic inspection using ELA compression differential and frequency noise residual evaluated by {res['model_used']}. Result: {res['prediction']} with {res['confidence']*100:.1f}% confidence."
-    }
+    return res
 
 # Video Verification Endpoint
 @app.post("/api/verify/video")

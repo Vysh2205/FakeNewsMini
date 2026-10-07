@@ -11,69 +11,85 @@ if backend_dir not in sys.path:
 from services.image_verification import process_image_file
 
 def generate_test_images():
-    # 1. Genuine Photo Simulation (Natural gradient, organic camera-like noise pattern)
-    width, height = 800, 600
-    x = np.linspace(0, 1, width)
-    y = np.linspace(0, 1, height)
-    xx, yy = np.meshgrid(x, y)
-    r = np.uint8((0.5 + 0.5 * np.sin(2 * np.pi * xx)) * 255)
-    g = np.uint8((0.5 + 0.5 * np.cos(2 * np.pi * yy)) * 255)
-    b = np.uint8((0.5 + 0.5 * np.sin(2 * np.pi * (xx + yy))) * 255)
-    noise = np.uint8(np.random.normal(12, 5, (height, width, 3)))
-    rgb_arr = np.clip(np.stack([r, g, b], axis=2).astype(np.int16) + noise.astype(np.int16), 0, 255).astype(np.uint8)
+    upload_dir = os.path.join(backend_dir, "uploads")
+    
+    # 1. Genuine Personal JPEG (user photo in artifacts if present)
+    user_photo_path = r"C:\Users\vyshn\.gemini\antigravity\brain\08abe981-3b0a-4824-98f8-d52691308a53\.user_uploaded\media_1791395885575.jpg"
+    if not os.path.exists(user_photo_path):
+        user_photo_path = os.path.join(os.path.dirname(__file__), "test_genuine_portrait.jpg")
+        img = Image.fromarray(np.uint8(np.random.normal(128, 30, (800, 600, 3)).clip(0, 255)))
+        img.save(user_photo_path, "JPEG", quality=90)
 
-    real_img = Image.fromarray(rgb_arr)
-    real_path = os.path.join(os.path.dirname(__file__), "test_genuine_photo.jpg")
-    real_img.save(real_path, "JPEG", quality=95)
+    # 2. Another Genuine Photograph (Camera landscape photo)
+    photo2_path = os.path.join(os.path.dirname(__file__), "test_genuine_landscape.jpg")
+    img2 = Image.fromarray(np.uint8(np.random.normal(120, 40, (1920, 1080, 3)).clip(0, 255)))
+    img2.save(photo2_path, "JPEG", quality=95)
 
-    # 2. Manipulated / Synthetic Deepfake Image Simulation (Midjourney / AI tag in filename + smooth flat patches)
-    fake_img = Image.fromarray(np.uint8(np.random.uniform(50, 200, (512, 512, 3))))
-    fake_path = os.path.join(os.path.dirname(__file__), "test_midjourney_synthetic.jpg")
-    fake_img.save(fake_path, "JPEG", quality=70)
+    # 3. Known Manipulated Image (Edited / Spliced image)
+    manipulated_path = os.path.join(os.path.dirname(__file__), "test_manipulated_edit.jpg")
+    img3_arr = np.uint8(np.random.uniform(10, 240, (512, 512, 3)))
+    # Insert sharp artificial spliced block
+    img3_arr[100:300, 100:300] = 255
+    img3 = Image.fromarray(img3_arr)
+    img3.save(manipulated_path, "JPEG", quality=40)
 
-    return real_path, fake_path
+    # 4. Known AI-Generated / Deepfake Image
+    ai_path = os.path.join(os.path.dirname(__file__), "test_midjourney_ai_generated.jpg")
+    img4_arr = np.uint8(np.ones((1024, 1024, 3)) * 128)
+    img4 = Image.fromarray(img4_arr)
+    img4.save(ai_path, "JPEG", quality=100)
 
-def test_image_pipeline():
+    return user_photo_path, photo2_path, manipulated_path, ai_path
+
+def test_four_image_cases():
     print("==================================================")
-    print("  IMAGE FORENSIC MODEL INFERENCE TEST             ")
+    print("  IMAGE FORENSIC ML PIPELINE MULTI-CASE TEST      ")
     print("==================================================\n")
 
-    real_path, fake_path = generate_test_images()
+    p1, p2, p3, p4 = generate_test_images()
     upload_dir = os.path.join(backend_dir, "uploads")
 
-    # 1. Test Genuine Photo
-    with open(real_path, "rb") as f:
-        real_bytes = f.read()
+    cases = [
+        ("A. Genuine Personal JPEG Photo", p1, "test_genuine_portrait.jpg"),
+        ("B. Another Genuine Photograph", p2, "test_genuine_landscape.jpg"),
+        ("C. Known Manipulated / Spliced Image", p3, "test_manipulated_edit.jpg"),
+        ("D. Known AI-Generated / Deepfake Image", p4, "test_midjourney_ai_generated.jpg")
+    ]
 
-    print("--- TESTING GENUINE CAMERA PHOTO SAMPLE ---")
-    res_real = process_image_file(real_bytes, "test_genuine_photo.jpg", upload_dir)
-    print("Result:")
-    print(f"  Image         : test_genuine_photo.jpg")
-    print(f"  Prediction    : {res_real.get('prediction')}")
-    print(f"  Is Fake       : {res_real.get('is_fake')}")
-    print(f"  Confidence    : {res_real.get('confidence')}")
-    print(f"  Probabilities : {res_real.get('probabilities')}")
-    print(f"  Label Mapping : {res_real.get('label_mapping')}")
-    print(f"  Indicators    : {res_real.get('forensic_indicators')}\n")
+    results_table = []
 
-    # 2. Test Deepfake / Manipulated Image
-    with open(fake_path, "rb") as f:
-        fake_bytes = f.read()
+    for label, path, fname in cases:
+        with open(path, "rb") as f:
+            bytes_data = f.read()
 
-    print("--- TESTING MANIPULATED / AI DEEPFAKE SAMPLE ---")
-    res_fake = process_image_file(fake_bytes, "test_midjourney_synthetic.jpg", upload_dir)
-    print("Result:")
-    print(f"  Image         : test_midjourney_synthetic.jpg")
-    print(f"  Prediction    : {res_fake.get('prediction')}")
-    print(f"  Is Fake       : {res_fake.get('is_fake')}")
-    print(f"  Confidence    : {res_fake.get('confidence')}")
-    print(f"  Probabilities : {res_fake.get('probabilities')}")
-    print(f"  Label Mapping : {res_fake.get('label_mapping')}")
-    print(f"  Indicators    : {res_fake.get('forensic_indicators')}\n")
+        print(f"--- RUNNING TEST CASE: {label} ---")
+        res = process_image_file(bytes_data, fname, upload_dir)
+        pred = res.get("prediction")
+        conf = res.get("confidence")
+        probs = res.get("probabilities")
+        is_fake = res.get("is_fake")
 
-    # Clean up test files
-    if os.path.exists(real_path): os.remove(real_path)
-    if os.path.exists(fake_path): os.remove(fake_path)
+        print(f"  Filename      : {fname}")
+        print(f"  Prediction    : {pred}")
+        print(f"  Is Fake       : {is_fake}")
+        print(f"  Confidence    : {conf}")
+        print(f"  Probabilities : {probs}\n")
+
+        results_table.append({
+            "case": label,
+            "filename": fname,
+            "prediction": pred,
+            "confidence": f"{conf*100:.1f}%",
+            "probs": probs
+        })
+
+    print("==================================================")
+    print("  SUMMARY TEST TABLE                              ")
+    print("==================================================")
+    print(f"{'Test Case':38s} | {'Prediction':32s} | {'Confidence':10s}")
+    print("-" * 88)
+    for r in results_table:
+        print(f"{r['case']:38s} | {r['prediction']:32s} | {r['confidence']:10s}")
 
 if __name__ == "__main__":
-    test_image_pipeline()
+    test_four_image_cases()
