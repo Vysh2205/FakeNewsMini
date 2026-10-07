@@ -20,6 +20,7 @@ try:
     from services.source_credibility import evaluate_source
     from services.image_verification import process_image_file
     from services.video_verification import process_video_file
+    from services.audio_verification import process_audio_file
 except ImportError:
     from backend.scraper import scrape_article
     from backend.ml_service import analyze_text_with_ai
@@ -32,6 +33,7 @@ except ImportError:
     from backend.services.source_credibility import evaluate_source
     from backend.services.image_verification import process_image_file
     from backend.services.video_verification import process_video_file
+    from backend.services.audio_verification import process_audio_file
 
 
 from sqlalchemy import text
@@ -220,6 +222,54 @@ def verify_video(file: UploadFile = File(...), db: Session = Depends(get_db)):
     report["limitations"] = res["limitations"]
     return report
 
+# Audio Verification Endpoint
+@app.post("/api/verify/audio")
+@app.post("/api/analyze/audio")
+def verify_audio(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    contents = file.file.read()
+    res = process_audio_file(contents, file.filename, UPLOAD_DIR)
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+
+    # Register in DB history
+    try:
+        verification_id = f"v_{uuid.uuid4().hex[:8]}"
+        history_record = models.AnalysisHistory(
+            verification_id=verification_id,
+            user_id=1,
+            content_type="audio",
+            content=f"Audio Verification: {file.filename} ({res['file_type'].upper()}, {res['duration_formatted']})",
+            title=f"Audio Deepfake Analysis - {file.filename}",
+            source_domain="Audio Upload",
+            verdict="FAKE" if res["is_fake"] else "REAL",
+            is_fake=res["is_fake"],
+            confidence_score=res["confidence"],
+            overall_risk=int(res["confidence"] * 100) if res["is_fake"] else int((1 - res["confidence"]) * 30),
+            language="Audio Spectrum",
+            media_path=res["media_url"],
+            explanation=f"Acoustic feature extraction (MFCCs, spectral centroid, ZCR) evaluated using {res['model_used']}. Classification: {res['prediction']} with {res['confidence']*100:.1f}% confidence.",
+            details_json=json.dumps(res)
+        )
+        db.add(history_record)
+        db.commit()
+    except Exception as e:
+        print(f"DB Audio History Log Error: {e}")
+
+    return {
+        "prediction": res["prediction"],
+        "is_fake": res["is_fake"],
+        "confidence": res["confidence"],
+        "duration": res["duration"],
+        "duration_formatted": res["duration_formatted"],
+        "file_type": res["file_type"],
+        "file_size_mb": res["file_size_mb"],
+        "model_used": res["model_used"],
+        "media_url": res["media_url"],
+        "supporting_indicators": res["supporting_indicators"],
+        "risk_indicators": res["supporting_indicators"],
+        "features_extracted": res["features_extracted"]
+    }
+
 # Verification History Endpoint
 @app.get("/api/history")
 def get_history(db: Session = Depends(get_db)):
@@ -260,6 +310,10 @@ def get_analytics(db: Session = Depends(get_db)):
     url_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "url").count()
     img_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "image").count()
     vid_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "video").count()
+    aud_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "audio").count()
+    
+    real_aud_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "audio", models.AnalysisHistory.is_fake == False).count()
+    fake_aud_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.content_type == "audio", models.AnalysisHistory.is_fake == True).count()
 
     # Languages breakdown
     hi_cnt = db.query(models.AnalysisHistory).filter(models.AnalysisHistory.language == "Hindi").count()
@@ -277,7 +331,13 @@ def get_analytics(db: Session = Depends(get_db)):
             "text": text_cnt,
             "url": url_cnt,
             "image": img_cnt,
-            "video": vid_cnt
+            "video": vid_cnt,
+            "audio": aud_cnt
+        },
+        "audio_analytics": {
+            "total_audio": aud_cnt,
+            "real_audio": real_aud_cnt,
+            "fake_audio": fake_aud_cnt
         },
         "language_breakdown": {
             "English": en_cnt,
@@ -285,3 +345,4 @@ def get_analytics(db: Session = Depends(get_db)):
             "Telugu": te_cnt
         }
     }
+

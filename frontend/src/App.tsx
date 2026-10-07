@@ -3,13 +3,22 @@ import { motion } from 'framer-motion';
 import { 
   ShieldAlert, ShieldCheck, Search, Activity, Link as LinkIcon, Download, 
   BarChart2, FileText, Image as ImageIcon, History as HistoryIcon,
-  ExternalLink, Globe, AlertTriangle, Info, Upload
+  ExternalLink, Globe, AlertTriangle, Info, Upload, Volume2
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return 'http://127.0.0.1:8000';
+  }
+  return 'http://127.0.0.1:8000';
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'news' | 'media' | 'history' | 'dashboard' | 'workflow'>('news');
-  const [subTab, setSubTab] = useState<'text' | 'url' | 'image' | 'video'>('text');
+  const [subTab, setSubTab] = useState<'text' | 'url' | 'image' | 'video' | 'audio'>('text');
   
   const [inputData, setInputData] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -21,7 +30,8 @@ export default function App() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/analytics');
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/analytics`);
       const data = await res.json();
       setStats(data);
     } catch (e) {
@@ -31,7 +41,8 @@ export default function App() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/history');
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/history`);
       const data = await res.json();
       setHistoryList(data);
     } catch (e) {
@@ -71,9 +82,9 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: inputData })
         };
-      } else if (subTab === 'image' || subTab === 'video') {
+      } else if (subTab === 'image' || subTab === 'video' || subTab === 'audio') {
         if (!selectedFile) throw new Error(`Please select an ${subTab} file to upload.`);
-        endpoint = subTab === 'image' ? '/api/verify/image' : '/api/verify/video';
+        endpoint = subTab === 'audio' ? '/api/verify/audio' : (subTab === 'image' ? '/api/verify/image' : '/api/verify/video');
         const formData = new FormData();
         formData.append('file', selectedFile);
         options = {
@@ -82,7 +93,8 @@ export default function App() {
         };
       }
 
-      const res = await fetch(`http://127.0.0.1:8000${endpoint}`, options);
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}${endpoint}`, options);
       
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -93,7 +105,11 @@ export default function App() {
       setResult(data);
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(error.message || "Failed to connect to the backend server.");
+      if (error.message === "Failed to fetch" || error.name === "TypeError") {
+        setErrorMsg("Backend Server Disconnected: The Python FastAPI server (http://127.0.0.1:8000) is currently offline or restarting. Please ensure the backend server is running.");
+      } else {
+        setErrorMsg(error.message || "Failed to connect to the backend server.");
+      }
     }
     setLoading(false);
   };
@@ -180,6 +196,7 @@ export default function App() {
                 <>
                   <button onClick={() => setSubTab('image')} className={`text-sm font-bold pb-1 transition ${subTab === 'image' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Image Verification</button>
                   <button onClick={() => setSubTab('video')} className={`text-sm font-bold pb-1 transition ${subTab === 'video' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Video Verification</button>
+                  <button onClick={() => setSubTab('audio')} className={`text-sm font-bold pb-1 transition ${subTab === 'audio' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Audio Deepfake</button>
                 </>
               )}
             </div>
@@ -205,20 +222,25 @@ export default function App() {
                 </div>
               )}
 
-              {(subTab === 'image' || subTab === 'video') && (
+              {(subTab === 'image' || subTab === 'video' || subTab === 'audio') && (
                 <div className="border-2 border-dashed border-zinc-800 rounded-xl p-8 text-center bg-zinc-950/40 hover:border-amber-500/40 transition">
-                  <Upload className="mx-auto text-amber-400 mb-3" size={36} />
+                  {subTab === 'audio' ? <Volume2 className="mx-auto text-amber-400 mb-3" size={36} /> : <Upload className="mx-auto text-amber-400 mb-3" size={36} />}
                   <input
                     type="file"
-                    accept={subTab === 'image' ? "image/jpeg,image/jpg,image/png,image/webp" : "video/mp4,video/mov,video/avi"}
+                    accept={
+                      subTab === 'image' ? "image/jpeg,image/jpg,image/png,image/webp" :
+                      subTab === 'video' ? "video/mp4,video/mov,video/avi" :
+                      "audio/mp3,audio/mpeg,audio/wav,audio/m4a,audio/aac,audio/x-m4a,audio/x-aac,.mp3,.wav,.m4a,.aac"
+                    }
                     onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                     className="hidden" id="file-upload"
                   />
                   <label htmlFor="file-upload" className="cursor-pointer bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm inline-block">
-                    {selectedFile ? selectedFile.name : `Select ${subTab === 'image' ? 'Image' : 'Video'} File`}
+                    {selectedFile ? selectedFile.name : `Select ${subTab === 'audio' ? 'Audio' : (subTab === 'image' ? 'Image' : 'Video')} File`}
                   </label>
                   <p className="text-xs text-zinc-500 mt-2">
-                    {subTab === 'image' ? "Supported: JPG, JPEG, PNG, WEBP (Max 10MB)" : "Supported: MP4, MOV, AVI (Max 50MB)"}
+                    {subTab === 'audio' ? "Supported: MP3, WAV, M4A, AAC (Max 25MB)" :
+                     subTab === 'image' ? "Supported: JPG, JPEG, PNG, WEBP (Max 10MB)" : "Supported: MP4, MOV, AVI (Max 50MB)"}
                   </p>
                 </div>
               )}
@@ -281,18 +303,42 @@ export default function App() {
                   </div>
 
                   <h2 className="text-3xl md:text-4xl font-black">
-                    {result.verdict_type === 'FAKE' && 'Potential Fake News Detected'}
-                    {result.verdict_type === 'REAL' && 'Likely Reliable Source / Real News'}
-                    {result.verdict_type === 'UNCERTAIN' && 'UNCERTAIN – Additional Verification Recommended'}
+                    {result.file_type && result.duration_formatted ? (
+                      result.is_fake ? 'AI Generated Deepfake Audio Detected' : 'Real Human Voice Audio'
+                    ) : (
+                      <>
+                        {result.verdict_type === 'FAKE' && 'Potential Fake News Detected'}
+                        {result.verdict_type === 'REAL' && 'Likely Reliable Source / Real News'}
+                        {result.verdict_type === 'UNCERTAIN' && 'UNCERTAIN – Additional Verification Recommended'}
+                      </>
+                    )}
                   </h2>
                   
                   <p className="text-zinc-300 text-lg mt-2">
                     Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
                     <span className="mx-3 text-zinc-600">|</span>
                     Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
-                    <span className="mx-3 text-zinc-600">|</span>
-                    Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
+                    {result.duration_formatted && (
+                      <>
+                        <span className="mx-3 text-zinc-600">|</span>
+                        Duration: <span className="font-mono font-bold text-amber-300">{result.duration_formatted}</span>
+                        <span className="mx-3 text-zinc-600">|</span>
+                        Format: <span className="font-mono font-bold uppercase text-amber-300">{result.file_type}</span>
+                      </>
+                    )}
+                    {result.overall_risk !== undefined && (
+                      <>
+                        <span className="mx-3 text-zinc-600">|</span>
+                        Risk Level: <span className={`font-mono font-bold ${result.overall_risk >= 70 ? 'text-red-400' : 'text-emerald-400'}`}>{result.overall_risk}% ({result.verdict})</span>
+                      </>
+                    )}
                   </p>
+
+                  {result.media_url && result.file_type && (
+                    <div className="mt-3">
+                      <audio controls src={`${getApiBaseUrl()}${result.media_url}`} className="w-full h-10 rounded-lg border border-zinc-800" />
+                    </div>
+                  )}
 
                   <p className="text-xs text-zinc-400 bg-zinc-950/60 border border-zinc-800/80 p-2.5 rounded-xl mt-3">
                     <strong>Disclaimer:</strong> FakeBuster is an AI-based decision-support tool. Predictions and confidence scores represent classification probabilities based on training patterns and do not guarantee absolute factual truth.
