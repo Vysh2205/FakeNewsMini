@@ -23,48 +23,48 @@ def generate_audio_dataset():
     data = []
 
     # 1. Generate Real Human Voice Acoustic Features (Label = 0)
-    # Real voices have natural micro-tremors, continuous spectral variation, organic background noise
+    # Real speech: Natural lower vocal resonances, moderate spectral centroids (1000-2200Hz), low zero crossing rates
     for i in range(n_real):
         row = {}
-        # MFCC Means (natural human vocal tract resonances)
-        for k in range(1, 21):
-            base = -15.0 if k == 1 else (10.0 / k)
-            row[f"mfcc_mean_{k}"] = float(np.random.normal(base, 2.5))
-        # MFCC Stds (higher natural dynamic range)
+        # MFCC Means (librosa speech scale: -180 for c0/c1, decaying organic components)
+        row["mfcc_mean_1"] = float(np.random.normal(-160.0, 25.0))
+        for k in range(2, 21):
+            row[f"mfcc_mean_{k}"] = float(np.random.normal(12.0 / k, 4.0 / np.sqrt(k)))
+        # MFCC Stds (higher dynamic range in natural speech)
         for k in range(1, 11):
-            row[f"mfcc_std_{k}"] = float(np.random.normal(4.5 + (1.5 / k), 1.2))
-        
-        row["spec_centroid_mean"] = float(np.random.normal(1600.0, 300.0))
-        row["spec_centroid_std"] = float(np.random.normal(450.0, 80.0))
-        row["zcr_mean"] = float(np.random.normal(0.08, 0.02))
-        row["zcr_std"] = float(np.random.normal(0.04, 0.01))
-        row["chroma_mean"] = float(np.random.normal(0.45, 0.08))
-        row["chroma_std"] = float(np.random.normal(0.25, 0.05))
-        row["spec_rolloff_mean"] = float(np.random.normal(3200.0, 500.0))
-        row["spec_bandwidth_mean"] = float(np.random.normal(1800.0, 250.0))
-        row["duration_sec"] = float(np.random.uniform(5.0, 60.0))
+            row[f"mfcc_std_{k}"] = float(np.random.normal(15.0 + (5.0 / k), 3.5))
+
+        row["spec_centroid_mean"] = float(np.random.normal(1500.0, 250.0))
+        row["spec_centroid_std"] = float(np.random.normal(400.0, 60.0))
+        row["zcr_mean"] = float(np.random.normal(0.04, 0.015))
+        row["zcr_std"] = float(np.random.normal(0.025, 0.008))
+        row["chroma_mean"] = float(np.random.normal(0.22, 0.04))
+        row["chroma_std"] = float(np.random.normal(0.18, 0.03))
+        row["spec_rolloff_mean"] = float(np.random.normal(3000.0, 450.0))
+        row["spec_bandwidth_mean"] = float(np.random.normal(1600.0, 200.0))
+        row["duration_sec"] = float(np.random.uniform(3.0, 45.0))
         row["label"] = 0  # Real Voice
         data.append(row)
 
     # 2. Generate AI-Generated / Deepfake Audio Features (Label = 1)
-    # Synthetic voices (TTS, Voice Conversion) exhibit phase artifacts, overly smooth pitch curves, robotic high-frequency cutoffs
+    # AI synthetic speech (neural vocoders): flatter MFCC spectrum, higher spectral centroids (>2500Hz), elevated ZCR (>0.10)
     for i in range(n_fake):
         row = {}
-        for k in range(1, 21):
-            base = -25.0 if k == 1 else (4.0 / k)
-            row[f"mfcc_mean_{k}"] = float(np.random.normal(base, 1.8))
+        row["mfcc_mean_1"] = float(np.random.normal(-50.0, 30.0))
+        for k in range(2, 21):
+            row[f"mfcc_mean_{k}"] = float(np.random.normal(3.0 / k, 2.0))
         for k in range(1, 11):
-            row[f"mfcc_std_{k}"] = float(np.random.normal(2.1 + (0.8 / k), 0.6))  # Reduced variance (over-smoothness)
-        
-        row["spec_centroid_mean"] = float(np.random.normal(2400.0, 450.0))       # Higher synthetic spectral brightness
-        row["spec_centroid_std"] = float(np.random.normal(210.0, 45.0))         # Lower spectral variance
-        row["zcr_mean"] = float(np.random.normal(0.14, 0.03))                   # High-frequency switching/buzzy artifacts
-        row["zcr_std"] = float(np.random.normal(0.02, 0.008))
-        row["chroma_mean"] = float(np.random.normal(0.60, 0.06))
-        row["chroma_std"] = float(np.random.normal(0.12, 0.03))
-        row["spec_rolloff_mean"] = float(np.random.normal(4800.0, 650.0))
-        row["spec_bandwidth_mean"] = float(np.random.normal(2300.0, 300.0))
-        row["duration_sec"] = float(np.random.uniform(5.0, 60.0))
+            row[f"mfcc_std_{k}"] = float(np.random.normal(6.0 + (2.0 / k), 1.8))  # Lower std = over-smoothed synthetic voice
+
+        row["spec_centroid_mean"] = float(np.random.normal(3800.0, 600.0))
+        row["spec_centroid_std"] = float(np.random.normal(180.0, 35.0))
+        row["zcr_mean"] = float(np.random.normal(0.18, 0.04))
+        row["zcr_std"] = float(np.random.normal(0.012, 0.005))
+        row["chroma_mean"] = float(np.random.normal(0.35, 0.05))
+        row["chroma_std"] = float(np.random.normal(0.09, 0.02))
+        row["spec_rolloff_mean"] = float(np.random.normal(5500.0, 700.0))
+        row["spec_bandwidth_mean"] = float(np.random.normal(2600.0, 300.0))
+        row["duration_sec"] = float(np.random.uniform(3.0, 45.0))
         row["label"] = 1  # AI-Generated Deepfake Voice
         data.append(row)
 

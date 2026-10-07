@@ -118,14 +118,24 @@ def process_audio_file(file_bytes: bytes, filename: str, upload_dir: str):
 
         pred_label = int(model.predict(feat_scaled)[0])
         
-        confidence = 0.88
+        prob_real, prob_fake = 0.5, 0.5
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(feat_scaled)[0]
+            prob_real = float(probs[0])
+            prob_fake = float(probs[1])
             confidence = float(np.max(probs))
+        else:
+            confidence = 0.88
 
         confidence = round(max(0.70, min(0.99, confidence)), 4)
         is_fake = (pred_label == 1)
         prediction_str = "AI Generated" if is_fake else "Real Human Voice"
+
+        # Logging details for audit/debugging
+        print(f"[AUDIO ML DEBUG] Model Type: {type(model).__name__}")
+        print(f"[AUDIO ML DEBUG] Feature Shape: {np.array(feat_scaled).shape}")
+        print(f"[AUDIO ML DEBUG] Prediction Class: {pred_label} ({prediction_str})")
+        print(f"[AUDIO ML DEBUG] Probabilities -> REAL (0): {prob_real:.4f} | FAKE (1): {prob_fake:.4f}")
 
         # Heuristic Supporting Risk Indicators
         if is_fake:
@@ -143,6 +153,14 @@ def process_audio_file(file_bytes: bytes, filename: str, upload_dir: str):
             "prediction": prediction_str,
             "is_fake": is_fake,
             "confidence": confidence,
+            "probabilities": {
+                "REAL": round(prob_real, 4),
+                "FAKE": round(prob_fake, 4)
+            },
+            "label_mapping": {
+                "0": "REAL (Real Human Voice)",
+                "1": "FAKE (AI Generated Deepfake)"
+            },
             "duration": round(duration_sec, 2),
             "duration_formatted": duration_formatted,
             "file_type": ext.replace(".", "").lower(),
