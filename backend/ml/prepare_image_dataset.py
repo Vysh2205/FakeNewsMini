@@ -23,59 +23,59 @@ def generate_image_dataset():
 
     data = []
 
-    # 1. Generate Real Camera Photos (Label = 0: REAL)
-    # Real camera photos: Sensor Bayer noise, natural ELA compression error (mean 10-35, std 6-20), laplacian variance 150-3000
+    # 1. Generate Real Camera Photos & Human Portraits (Label = 0: REAL)
+    # Real human face photos & camera images: organic skin color distributions, laplacian var 30-3000, ELA mean 3.0-35.0
     for i in range(n_real):
         row = {}
-        row["ela_mean"] = float(np.random.normal(18.0, 5.0))
-        row["ela_std"] = float(np.random.normal(12.0, 3.0))
-        row["ela_max"] = float(np.random.normal(160.0, 25.0))
+        row["ela_mean"] = float(np.random.normal(16.0, 6.0))
+        row["ela_std"] = float(np.random.normal(10.0, 3.5))
+        row["ela_max"] = float(np.random.normal(150.0, 30.0))
 
-        row["r_mean"] = float(np.random.normal(125.0, 25.0))
-        row["r_std"] = float(np.random.normal(55.0, 10.0))
-        row["g_mean"] = float(np.random.normal(120.0, 22.0))
-        row["g_std"] = float(np.random.normal(52.0, 9.0))
-        row["b_mean"] = float(np.random.normal(115.0, 25.0))
-        row["b_std"] = float(np.random.normal(50.0, 10.0))
+        row["r_mean"] = float(np.random.normal(135.0, 30.0))
+        row["r_std"] = float(np.random.normal(48.0, 12.0))
+        row["g_mean"] = float(np.random.normal(115.0, 25.0))
+        row["g_std"] = float(np.random.normal(42.0, 10.0))
+        row["b_mean"] = float(np.random.normal(105.0, 28.0))
+        row["b_std"] = float(np.random.normal(40.0, 11.0))
 
-        row["rg_cov"] = float(np.random.normal(2500.0, 500.0))
-        row["gb_cov"] = float(np.random.normal(2200.0, 450.0))
-        row["rb_cov"] = float(np.random.normal(2300.0, 480.0))
+        row["rg_cov"] = float(np.random.normal(2100.0, 600.0))
+        row["gb_cov"] = float(np.random.normal(1900.0, 550.0))
+        row["rb_cov"] = float(np.random.normal(2000.0, 580.0))
 
-        row["laplacian_var"] = float(np.random.normal(1200.0, 400.0))
-        row["fft_high_freq_energy"] = float(np.random.normal(0.06, 0.02))
-        row["noise_residual_std"] = float(np.random.normal(25.0, 5.0))
+        row["laplacian_var"] = float(np.random.normal(600.0, 350.0)) # Soft face skin to sharp landscapes
+        row["fft_high_freq_energy"] = float(np.random.normal(0.08, 0.03))
+        row["noise_residual_std"] = float(np.random.normal(20.0, 6.0))
 
-        row["exif_present"] = 1.0 if np.random.rand() > 0.4 else 0.0
-        row["aspect_ratio"] = float(np.random.choice([1.33, 1.5, 1.77]))
-        row["width"] = float(np.random.normal(1920.0, 300.0))
-        row["height"] = float(np.random.normal(1080.0, 200.0))
+        row["exif_present"] = 1.0 if np.random.rand() > 0.5 else 0.0
+        row["aspect_ratio"] = float(np.random.choice([1.0, 1.33, 1.5, 1.77]))
+        row["width"] = float(np.random.normal(1280.0, 400.0))
+        row["height"] = float(np.random.normal(960.0, 300.0))
 
         row["label"] = 0  # 0 = REAL
         data.append(row)
 
     # 2. Generate Manipulated / AI Deepfake Images (Label = 1: FAKE)
-    # AI/Manipulated images: Abnormally flat ELA (< 5.0), low Laplacian variance (< 100.0), high FFT energy (> 0.25)
+    # AI/Manipulated images: Abnormally flat ELA (< 1.5), stripped color variance, high frequency FFT grid artifacts
     for i in range(n_fake):
         row = {}
-        row["ela_mean"] = float(np.random.normal(3.5, 1.2))       # Over-smoothed synthetic ELA
-        row["ela_std"] = float(np.random.normal(2.1, 0.8))
-        row["ela_max"] = float(np.random.normal(35.0, 10.0))
+        row["ela_mean"] = float(np.random.normal(0.6, 0.3))       # Ultra-flat AI generated ELA
+        row["ela_std"] = float(np.random.normal(0.3, 0.15))
+        row["ela_max"] = float(np.random.normal(15.0, 5.0))
 
         row["r_mean"] = float(np.random.normal(140.0, 30.0))
-        row["r_std"] = float(np.random.normal(25.0, 5.0))
+        row["r_std"] = float(np.random.normal(15.0, 3.0))        # Over-smoothed skin variance
         row["g_mean"] = float(np.random.normal(135.0, 28.0))
-        row["g_std"] = float(np.random.normal(22.0, 4.0))
+        row["g_std"] = float(np.random.normal(12.0, 2.5))
         row["b_mean"] = float(np.random.normal(130.0, 32.0))
-        row["b_std"] = float(np.random.normal(20.0, 5.0))
+        row["b_std"] = float(np.random.normal(10.0, 2.0))
 
-        row["rg_cov"] = float(np.random.normal(600.0, 150.0))
-        row["gb_cov"] = float(np.random.normal(500.0, 140.0))
-        row["rb_cov"] = float(np.random.normal(550.0, 150.0))
+        row["rg_cov"] = float(np.random.normal(300.0, 80.0))
+        row["gb_cov"] = float(np.random.normal(250.0, 70.0))
+        row["rb_cov"] = float(np.random.normal(280.0, 75.0))
 
-        row["laplacian_var"] = float(np.random.normal(60.0, 18.0))   # Low sharpness / synthetic blur
-        row["fft_high_freq_energy"] = float(np.random.normal(0.32, 0.06)) # High frequency grid noise
-        row["noise_residual_std"] = float(np.random.normal(7.0, 2.0))
+        row["laplacian_var"] = float(np.random.normal(18.0, 5.0))    # Extremely blurred/smoothed
+        row["fft_high_freq_energy"] = float(np.random.normal(0.40, 0.08)) # High frequency grid noise
+        row["noise_residual_std"] = float(np.random.normal(3.0, 1.0))
 
         row["exif_present"] = 0.0
         row["aspect_ratio"] = float(np.random.choice([1.0, 1.33]))

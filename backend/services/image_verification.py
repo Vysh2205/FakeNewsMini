@@ -178,11 +178,8 @@ def process_image_file(file_bytes: bytes, filename: str, upload_dir: str):
                 "midjourney", "dalle", "stable_diffusion", "deepfake", "ai_generated", "synthetic_image", "fake_photo"
             ])
 
-            # Detect synthetic over-smoothing or FFT grid artifacts
-            is_synthetic_artifact = (
-                (ela_mean < 2.0 and ela_std < 1.0 and laplacian_var < 30.0) or
-                (fft_high_freq_energy > 0.45 and laplacian_var < 50.0)
-            )
+            # Detect extreme synthetic neural vocoder / array artifacts (unnatural zero ELA)
+            is_synthetic_artifact = (ela_mean < 1.0 and ela_std < 0.5)
 
             if is_ai_filename or is_synthetic_artifact:
                 is_fake = True
@@ -190,12 +187,12 @@ def process_image_file(file_bytes: bytes, filename: str, upload_dir: str):
                 prob_fake = max(0.88, prob_fake)
                 prob_real = round(1.0 - prob_fake, 4)
                 confidence = round(max(0.88, prob_fake), 4)
-            elif pred_label == 0 or (not is_ai_filename and ela_mean >= 5.0 and laplacian_var >= 150.0):
+            elif pred_label == 0 or (not is_ai_filename and r_std > 8.0 and g_std > 8.0 and b_std > 8.0):
                 is_fake = False
                 prediction_str = "Real Genuine Photo"
-                prob_real = max(0.78, prob_real)
+                prob_real = max(0.82, prob_real)
                 prob_fake = round(1.0 - prob_real, 4)
-                confidence = round(max(0.78, prob_real), 4)
+                confidence = round(max(0.82, prob_real), 4)
             else:
                 is_fake = True
                 prediction_str = "Manipulated / AI Deepfake Image"
