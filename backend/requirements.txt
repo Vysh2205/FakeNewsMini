@@ -5,11 +5,14 @@ psycopg2-binary
 pydantic
 python-jose[cryptography]
 passlib[bcrypt]
-transformers
-torch
 scikit-learn
 joblib
 numpy
+scipy
+librosa
+soundfile
+pydub
+soxr
 newspaper3k
 beautifulsoup4
 python-multipart
@@ -20,5 +23,3 @@ Pillow
 pytesseract
 opencv-python-headless
 requests
-
-

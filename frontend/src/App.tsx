@@ -8,10 +8,14 @@ import {
 import { jsPDF } from 'jspdf';
 
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  }
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') return 'http://127.0.0.1:8000';
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://127.0.0.1:8000';
+    }
   }
   return 'http://127.0.0.1:8000';
 };
@@ -98,15 +102,20 @@ export default function App() {
       
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Server error: ${res.statusText}`);
+        throw new Error(errData.detail || `Server error (${res.status}): ${res.statusText}`);
       }
       
       const data = await res.json();
       setResult(data);
     } catch (error: any) {
       console.error(error);
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
       if (error.message === "Failed to fetch" || error.name === "TypeError") {
-        setErrorMsg("Backend Server Disconnected: The Python FastAPI server (http://127.0.0.1:8000) is currently offline or restarting. Please ensure the backend server is running.");
+        if (isLocalHost) {
+          setErrorMsg("Unable to connect to the verification server. Please check that the Python FastAPI backend is running at http://localhost:8000.");
+        } else {
+          setErrorMsg("Verification service is currently unavailable. The FastAPI backend must be deployed to a cloud server (e.g. Render or Railway) and configured as VITE_API_URL.");
+        }
       } else {
         setErrorMsg(error.message || "Failed to connect to the backend server.");
       }
