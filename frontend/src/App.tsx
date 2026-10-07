@@ -327,6 +327,8 @@ export default function App() {
                   <h2 className="text-3xl md:text-4xl font-black">
                     {result.file_type && result.duration_formatted ? (
                       result.is_fake ? 'AI Generated Deepfake Audio Detected' : 'Real Human Voice Audio'
+                    ) : (result.forensic_indicators || result.image_metadata) ? (
+                      result.is_fake ? 'Manipulated / AI Deepfake Image Detected' : 'Real Genuine Camera Photo'
                     ) : (
                       <>
                         {result.verdict_type === 'FAKE' && 'Potential Fake News Detected'}
@@ -359,6 +361,12 @@ export default function App() {
                   {result.media_url && result.file_type && (
                     <div className="mt-3">
                       <audio controls src={`${getApiBaseUrl()}${result.media_url}`} className="w-full h-10 rounded-lg border border-zinc-800" />
+                    </div>
+                  )}
+
+                  {result.media_url && !result.file_type && (
+                    <div className="mt-4 max-w-xs rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
+                      <img src={`${getApiBaseUrl()}${result.media_url}`} alt="Uploaded Verification Preview" className="w-full h-auto object-cover max-h-56" />
                     </div>
                   )}
 
