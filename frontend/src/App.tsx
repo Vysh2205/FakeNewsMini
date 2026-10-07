@@ -35,7 +35,9 @@ export default function App() {
   const fetchStats = async () => {
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/analytics`);
+      const res = await fetch(`${baseUrl}/api/analytics`, {
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
       const data = await res.json();
       setStats(data);
     } catch (e) {
@@ -46,7 +48,9 @@ export default function App() {
   const fetchHistory = async () => {
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/history`);
+      const res = await fetch(`${baseUrl}/api/history`, {
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
       const data = await res.json();
       setHistoryList(data);
     } catch (e) {
@@ -75,7 +79,10 @@ export default function App() {
         endpoint = '/api/verify/text';
         options = {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'true'
+          },
           body: JSON.stringify({ text: inputData })
         };
       } else if (subTab === 'url') {
@@ -83,7 +90,10 @@ export default function App() {
         endpoint = '/api/verify/url';
         options = {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'true'
+          },
           body: JSON.stringify({ url: inputData })
         };
       } else if (subTab === 'image' || subTab === 'video' || subTab === 'audio') {
@@ -93,6 +103,9 @@ export default function App() {
         formData.append('file', selectedFile);
         options = {
           method: 'POST',
+          headers: {
+            'Bypass-Tunnel-Reminder': 'true'
+          },
           body: formData
         };
       }
