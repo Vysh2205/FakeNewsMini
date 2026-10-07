@@ -242,19 +242,43 @@ def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
 
 # Video Verification Endpoint
 @app.post("/api/verify/video")
+@app.post("/api/analyze/video")
 def verify_video(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = file.file.read()
     res = process_video_file(contents, file.filename, UPLOAD_DIR)
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
 
-    text_to_verify = res["ocr_text"] if (res["ocr_text"] and "No text overlay" not in res["ocr_text"]) else f"Media claim in video file {file.filename}"
-    report = build_verification_report(text_to_verify, media_path=res["media_url"], content_type="video", db=db)
-    report["video_metadata"] = res["metadata"]
-    report["extracted_frames"] = res["extracted_frames"]
-    report["speech_transcript"] = res["speech_transcript"]
-    report["limitations"] = res["limitations"]
-    return report
+    # Register in DB history
+    try:
+        verification_id = f"v_{uuid.uuid4().hex[:8]}"
+        is_fk = res.get("is_fake", False)
+        conf = res.get("confidence", 0.0)
+        pred = res.get("prediction", "UNAVAILABLE")
+        expl = res.get("explanation", res.get("message", ""))
+        v_meta = res.get("video_metadata", {})
+        history_record = models.AnalysisHistory(
+            verification_id=verification_id,
+            user_id=1,
+            content_type="video",
+            content=f"Video file {file.filename}",
+            title=f"Video Inspection: {file.filename}",
+            source_domain="Direct Upload",
+            is_fake=is_fk,
+            confidence_score=conf,
+            verdict=pred,
+            overall_risk=int(conf * 100) if is_fk else int((1.0 - conf) * 100),
+            language="English",
+            media_path=res.get("media_url", ""),
+            explanation=expl,
+            details_json=json.dumps(res)
+        )
+        db.add(history_record)
+        db.commit()
+    except Exception as e:
+        print(f"DB Video History Log Error: {e}")
+
+    return res
 
 # Audio Verification Endpoint
 @app.post("/api/verify/audio")

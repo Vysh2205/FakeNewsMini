@@ -328,7 +328,9 @@ export default function App() {
 
                   <h2 className="text-2xl md:text-4xl font-black">
                     {(result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? (
-                      'Image Verification Model Unavailable'
+                      result.video_metadata ? 'Video Verification Inconclusive' : 'Image Verification Model Unavailable'
+                    ) : result.video_metadata ? (
+                      result.is_fake ? 'Manipulated / AI-Generated Video Detected' : 'Likely Authentic Video'
                     ) : result.file_type && result.duration_formatted ? (
                       result.is_fake ? 'AI Generated Deepfake Audio Detected' : 'Real Human Voice Audio'
                     ) : (result.forensic_indicators || result.image_metadata) ? (
@@ -344,13 +346,19 @@ export default function App() {
                   
                   {result.status === 'unavailable' ? (
                     <div className="mt-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-sm">
-                      <p className="font-medium">{result.message || "Image verification model is currently unavailable."}</p>
+                      <p className="font-medium">{result.message || "Video verification model is currently unavailable."}</p>
                     </div>
                   ) : (
                     <p className="text-zinc-300 text-lg mt-2">
                       Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
                       <span className="mx-3 text-zinc-600">|</span>
                       Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
+                      {result.frames_analyzed !== undefined && (
+                        <>
+                          <span className="mx-3 text-zinc-600">|</span>
+                          Frames Analyzed: <span className="font-mono font-bold text-amber-300">{result.frames_analyzed}</span>
+                        </>
+                      )}
                       {result.duration_formatted && (
                         <>
                           <span className="mx-3 text-zinc-600">|</span>
@@ -374,7 +382,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {result.media_url && !result.file_type && (
+                  {result.media_url && !result.file_type && !result.video_metadata && (
                     <div className="mt-4 flex flex-col md:flex-row gap-4 items-start">
                       <div className="max-w-xs rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 shrink-0">
                         <img src={`${getApiBaseUrl()}${result.media_url}`} alt="Uploaded Verification Preview" className="w-full h-auto object-cover max-h-56" />
@@ -392,6 +400,38 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Video Verification Player & Metadata Card */}
+                  {result.media_url && result.video_metadata && (
+                    <div className="mt-4 flex flex-col md:flex-row gap-4 items-start">
+                      <div className="max-w-xs rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 shrink-0 w-full md:w-auto">
+                        <video controls src={`${getApiBaseUrl()}${result.media_url}`} className="w-full h-auto object-cover max-h-56 rounded-lg" />
+                      </div>
+                      <div className="flex-1 bg-zinc-950/70 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 w-full">
+                        <h4 className="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Analyzed Video Technical Metadata</h4>
+                        <div className="grid grid-cols-2 gap-2 text-zinc-300">
+                          <div><span className="text-zinc-500">File Name:</span> {result.video_metadata.file_name}</div>
+                          <div><span className="text-zinc-500">File Size:</span> {result.video_metadata.file_size}</div>
+                          <div><span className="text-zinc-500">Dimensions:</span> {result.video_metadata.dimensions || 'N/A'}</div>
+                          <div><span className="text-zinc-500">Duration:</span> {result.video_metadata.duration_seconds || 0} sec</div>
+                          <div><span className="text-zinc-500">FPS:</span> {result.video_metadata.fps || 'N/A'}</div>
+                          <div><span className="text-zinc-500">Total Frames:</span> {result.video_metadata.total_frames || 'N/A'}</div>
+                          <div><span className="text-zinc-500">Frames Analyzed:</span> {result.frames_analyzed || 0}</div>
+                          <div><span className="text-zinc-500">Format:</span> {result.video_metadata.format}</div>
+                        </div>
+                        {result.extracted_frames && result.extracted_frames.length > 0 && (
+                          <div className="pt-2 border-t border-zinc-800">
+                            <span className="text-zinc-400 font-bold block mb-1.5 text-[11px]">Extracted Keyframe Analysis Previews:</span>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                              {result.extracted_frames.map((kf: string, i: number) => (
+                                <img key={i} src={`${getApiBaseUrl()}${kf}`} alt={`Keyframe ${i+1}`} className="h-16 w-24 object-cover rounded border border-zinc-800 shrink-0" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
