@@ -203,18 +203,53 @@ def verify_url(request: UrlRequest, db: Session = Depends(get_db)):
 
 # Image Verification Endpoint
 @app.post("/api/verify/image")
+@app.post("/api/analyze/image")
 def verify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = file.file.read()
     res = process_image_file(contents, file.filename, UPLOAD_DIR)
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
 
-    text_to_verify = res["ocr_text"] if (res["ocr_text"] and "No text overlay" not in res["ocr_text"]) else f"Media claim in image file {file.filename}"
-    report = build_verification_report(text_to_verify, media_path=res["media_url"], content_type="image", db=db)
-    report["image_metadata"] = res["metadata"]
-    report["ocr_text"] = res["ocr_text"]
-    report["limitations"] = res["limitations"]
-    return report
+    # Register in DB history
+    try:
+        verification_id = f"v_{uuid.uuid4().hex[:8]}"
+        history_record = models.AnalysisHistory(
+            verification_id=verification_id,
+            user_id=1,
+            content_type="image",
+            content=f"Image verification file {file.filename}",
+            title=f"Image Verification: {file.filename}",
+            source_domain="Direct Upload",
+            is_fake=res["is_fake"],
+            confidence_score=res["confidence"],
+            verdict="FAKE" if res["is_fake"] else "REAL",
+            overall_risk=int(res["confidence"] * 100) if res["is_fake"] else int((1 - res["confidence"]) * 100),
+            language="English",
+            media_path=res["media_url"],
+            explanation=f"Image forensic evaluation (Error Level Analysis ELA, color covariance, Laplacian frequency residual) evaluated using {res['model_used']}. Classification: {res['prediction']} with {res['confidence']*100:.1f}% confidence.",
+            details_json=json.dumps(res)
+        )
+        db.add(history_record)
+        db.commit()
+    except Exception as e:
+        print(f"DB Image History Log Error: {e}")
+
+    return {
+        "prediction": res["prediction"],
+        "is_fake": res["is_fake"],
+        "verdict_type": "FAKE" if res["is_fake"] else "REAL",
+        "verdict": "FAKE" if res["is_fake"] else "REAL",
+        "confidence": res["confidence"],
+        "probabilities": res["probabilities"],
+        "label_mapping": res["label_mapping"],
+        "model_used": res["model_used"],
+        "media_url": res["media_url"],
+        "image_metadata": res["metadata"],
+        "forensic_indicators": res["forensic_indicators"],
+        "risk_indicators": res["forensic_indicators"],
+        "overall_risk": int(res["confidence"] * 100) if res["is_fake"] else int((1 - res["confidence"]) * 100),
+        "explanation": f"Image forensic inspection using ELA compression differential and frequency noise residual evaluated by {res['model_used']}. Result: {res['prediction']} with {res['confidence']*100:.1f}% confidence."
+    }
 
 # Video Verification Endpoint
 @app.post("/api/verify/video")

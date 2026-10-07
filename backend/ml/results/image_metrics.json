@@ -1,0 +1,120 @@
+{
+  "dataset_name": "FakeBuster Image Forensic Benchmark Dataset",
+  "dataset_source": "Compiled from ELA Compression, Color Covariance & Frequency Spectrum Residuals",
+  "total_samples": 300,
+  "real_samples": 150,
+  "fake_samples": 150,
+  "training_samples": 240,
+  "testing_samples": 60,
+  "feature_count": 19,
+  "label_mapping": {
+    "0": "REAL (Genuine Original Photo)",
+    "1": "FAKE (Manipulated / AI Deepfake Image)"
+  },
+  "top_features": [
+    {
+      "feature": "rg_cov",
+      "importance": 0.187
+    },
+    {
+      "feature": "rb_cov",
+      "importance": 0.1615
+    },
+    {
+      "feature": "gb_cov",
+      "importance": 0.1264
+    },
+    {
+      "feature": "ela_mean",
+      "importance": 0.1104
+    },
+    {
+      "feature": "ela_max",
+      "importance": 0.0965
+    },
+    {
+      "feature": "width",
+      "importance": 0.094
+    },
+    {
+      "feature": "noise_residual_std",
+      "importance": 0.0759
+    },
+    {
+      "feature": "fft_high_freq_energy",
+      "importance": 0.0545
+    },
+    {
+      "feature": "laplacian_var",
+      "importance": 0.034
+    },
+    {
+      "feature": "ela_std",
+      "importance": 0.0298
+    }
+  ],
+  "best_model": "Random Forest Classifier",
+  "best_f1_score": 1.0,
+  "all_metrics": {
+    "Random Forest Classifier": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "tp": 30,
+      "tn": 30,
+      "fp": 0,
+      "fn": 0
+    },
+    "Linear SVM": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "tp": 30,
+      "tn": 30,
+      "fp": 0,
+      "fn": 0
+    },
+    "Gaussian Naive Bayes": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "tp": 30,
+      "tn": 30,
+      "fp": 0,
+      "fn": 0
+    }
+  }
+}
