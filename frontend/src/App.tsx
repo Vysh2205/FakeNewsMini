@@ -175,28 +175,49 @@ export default function App() {
         <div className="flex flex-wrap justify-center gap-2 md:gap-3 bg-zinc-950 p-2 rounded-2xl border border-zinc-800/80 shadow-lg">
           <button 
             onClick={() => { setActiveTab('news'); setSubTab('text'); setResult(null); setErrorMsg(null); }} 
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'news' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'news' && subTab === 'text' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
           >
-            <FileText size={16} /> Verify News
+            <FileText size={16} /> Verify Text
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('news'); setSubTab('url'); setResult(null); setErrorMsg(null); }} 
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'news' && subTab === 'url' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <LinkIcon size={16} /> Verify URL
           </button>
           
           <button 
             onClick={() => { setActiveTab('media'); setSubTab('image'); setResult(null); setErrorMsg(null); }} 
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'media' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'media' && subTab === 'image' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
           >
-            <ImageIcon size={16} /> Verify Media
+            <ImageIcon size={16} /> Image Verification
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('media'); setSubTab('video'); setResult(null); setErrorMsg(null); }} 
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'media' && subTab === 'video' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <Activity size={16} /> Video Verification
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('media'); setSubTab('audio'); setResult(null); setErrorMsg(null); }} 
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'media' && subTab === 'audio' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+          >
+            <Volume2 size={16} /> Audio Deepfake
           </button>
           
           <button 
             onClick={() => setActiveTab('history')} 
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
           >
             <HistoryIcon size={16} /> History
           </button>
           
           <button 
             onClick={() => setActiveTab('dashboard')} 
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-white'}`}
           >
             <BarChart2 size={16} /> Analytics
           </button>
@@ -207,18 +228,18 @@ export default function App() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
             
-            {/* Sub-tabs */}
-            <div className="flex gap-4 border-b border-zinc-800/80 pb-4 mb-6">
+            {/* Sub-tabs Pills */}
+            <div className="flex flex-wrap gap-3 border-b border-zinc-800/80 pb-4 mb-6">
               {activeTab === 'news' ? (
                 <>
-                  <button onClick={() => setSubTab('text')} className={`text-sm font-bold pb-1 transition ${subTab === 'text' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Text / Article</button>
-                  <button onClick={() => setSubTab('url')} className={`text-sm font-bold pb-1 transition ${subTab === 'url' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>News URL</button>
+                  <button onClick={() => setSubTab('text')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${subTab === 'text' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}`}><FileText size={14} /> Text / Article</button>
+                  <button onClick={() => setSubTab('url')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${subTab === 'url' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}`}><LinkIcon size={14} /> News URL</button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => setSubTab('image')} className={`text-sm font-bold pb-1 transition ${subTab === 'image' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Image Verification</button>
-                  <button onClick={() => setSubTab('video')} className={`text-sm font-bold pb-1 transition ${subTab === 'video' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Video Verification</button>
-                  <button onClick={() => setSubTab('audio')} className={`text-sm font-bold pb-1 transition ${subTab === 'audio' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Audio Deepfake</button>
+                  <button onClick={() => setSubTab('image')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${subTab === 'image' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}`}><ImageIcon size={14} /> Image Verification</button>
+                  <button onClick={() => setSubTab('video')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${subTab === 'video' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}`}><Activity size={14} /> Video Verification</button>
+                  <button onClick={() => setSubTab('audio')} className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${subTab === 'audio' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}`}><Volume2 size={14} /> Audio Deepfake</button>
                 </>
               )}
             </div>
@@ -330,11 +351,11 @@ export default function App() {
                     {(result.verdict_type === 'UNAVAILABLE' || result.status === 'unavailable') ? (
                       result.video_metadata ? 'Video Verification Inconclusive' : 'Image Verification Model Unavailable'
                     ) : result.video_metadata ? (
-                      result.is_fake ? 'Manipulated / AI-Generated Video Detected' : 'Likely Authentic Video'
+                      result.verdict_type === 'UNCERTAIN' ? 'Video Verification Inconclusive' : (result.is_fake ? 'Manipulated / AI-Generated Video Detected' : 'Likely Authentic Video')
                     ) : result.file_type && result.duration_formatted ? (
                       result.is_fake ? 'AI Generated Deepfake Audio Detected' : 'Real Human Voice Audio'
-                    ) : (result.forensic_indicators || result.image_metadata) ? (
-                      result.is_fake ? 'Manipulated / AI Deepfake Image Detected' : 'Real Genuine Camera Photo'
+                    ) : (result.supporting_indicators || result.image_metadata) ? (
+                      result.verdict_type === 'UNCERTAIN' ? 'Image Verification Inconclusive' : (result.is_fake ? 'Manipulated / AI-Generated Image Detected' : 'Likely Authentic Image')
                     ) : (
                       <>
                         {result.verdict_type === 'FAKE' && 'Potential Fake News Detected'}
@@ -350,7 +371,7 @@ export default function App() {
                     </div>
                   ) : (
                     <p className="text-zinc-300 text-lg mt-2">
-                      Confidence Score: <span className="font-mono font-bold text-white">{(result.confidence * 100).toFixed(1)}%</span>
+                      Confidence Score: <span className="font-mono font-bold text-white">{Number(result.confidence > 1 ? result.confidence : result.confidence * 100).toFixed(1)}%</span>
                       <span className="mx-3 text-zinc-600">|</span>
                       Model Used: <span className="font-semibold text-amber-400">{result.model_used || 'Trained Classifier'}</span>
                       {result.frames_analyzed !== undefined && (
