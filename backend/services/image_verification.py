@@ -34,12 +34,13 @@ except Exception as e:
 
 def extract_image_features(file_bytes: bytes):
     """
-    Extracts multi-domain image forensic features:
-    1. Error Level Analysis (ELA) statistics (mean, std, max)
-    2. Spatial 2D FFT High-to-Low frequency energy ratio
-    3. Laplacian optical variance (focus & blur consistency)
-    4. High-pass sensor noise variance (PRNU pattern approximation)
-    5. Color Saturation distribution statistics
+    Extracts 13 multi-domain image forensic features:
+    1. ELA mean, std, max, and regional variance ratio (detects local splicing/deepfake inserts)
+    2. Spatial 2D FFT High/Low frequency energy ratio (detects GAN/Diffusion spectral artifacts)
+    3. Laplacian optical focus variance (detects AI hyper-smoothing vs optical depth-of-field)
+    4. Sensor PRNU high-pass residual noise std and mean (detects missing camera grain)
+    5. Color HSV Saturation mean & std (detects AI over-saturation/chroma anomalies)
+    6. Edge boundary gradient variance (detects cut-and-paste boundary artifacts)
     """
     pil_img = Image.open(io.BytesIO(file_bytes)).convert('RGB')
     img_np = np.array(pil_img)
@@ -57,16 +58,23 @@ def extract_image_features(file_bytes: bytes):
     ela_std = float(np.std(ela_diff))
     ela_max = float(np.max(ela_diff))
 
-    # 2. 2D FFT Spatial Frequency Energy Ratio
+    # Regional ELA Discrepancy (Center face region vs Outer background)
+    cy, cx = height // 2, width // 2
+    ry, rx = height // 4, width // 4
+    center_ela = np.mean(ela_diff[cy-ry:cy+ry, cx-rx:cx+rx]) if ry > 0 and rx > 0 else ela_mean
+    outer_ela = (ela_mean * (height * width) - center_ela * (4 * ry * rx)) / (max(1, height * width - 4 * ry * rx))
+    ela_regional_ratio = float(abs(center_ela - outer_ela) / (ela_mean + 1e-5))
+
+    # 2. 2D Spatial FFT Frequency Energy Ratio
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     f = np.fft.fft2(gray.astype(np.float32))
     fshift = np.fft.fftshift(f)
     magnitude_spectrum = np.log(np.abs(fshift) + 1e-8)
 
-    cy, cx = height // 2, width // 2
+    cy_f, cx_f = height // 2, width // 2
     r = max(10, min(height, width) // 8)
     y, x = np.ogrid[:height, :width]
-    mask_low = (x - cx)**2 + (y - cy)**2 <= r**2
+    mask_low = (x - cx_f)**2 + (y - cy_f)**2 <= r**2
 
     low_freq_energy = float(np.mean(magnitude_spectrum[mask_low]))
     high_freq_energy = float(np.mean(magnitude_spectrum[~mask_low]))
@@ -75,10 +83,11 @@ def extract_image_features(file_bytes: bytes):
     # 3. Optical Focus & Edge Sharpness (Laplacian)
     laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
 
-    # 4. Sensor PRNU High-pass Noise Estimation
+    # 4. Sensor PRNU High-pass Residual Noise
     blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
     noise_residual = gray.astype(np.float32) - blur_gray.astype(np.float32)
     noise_std = float(np.std(noise_residual))
+    noise_mean = float(np.mean(np.abs(noise_residual)))
 
     # 5. HSV Saturation Distribution
     hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
@@ -86,11 +95,17 @@ def extract_image_features(file_bytes: bytes):
     sat_mean = float(np.mean(sat))
     sat_std = float(np.std(sat))
 
+    # 6. Edge Gradient Variance
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    grad_mag = np.sqrt(sobelx**2 + sobely**2)
+    grad_var = float(np.var(grad_mag))
+
     features = [
-        ela_mean, ela_std, ela_max,
+        ela_mean, ela_std, ela_max, ela_regional_ratio,
         freq_ratio, high_freq_energy, low_freq_energy,
-        laplacian_var, noise_std,
-        sat_mean, sat_std
+        laplacian_var, noise_std, noise_mean,
+        sat_mean, sat_std, grad_var
     ]
     return np.array(features, dtype=np.float32), (height, width, channels)
 
