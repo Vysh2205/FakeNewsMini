@@ -17,7 +17,7 @@ const getApiBaseUrl = () => {
       return 'http://127.0.0.1:8000';
     }
   }
-  return 'https://mario-redeem-backup-texts.trycloudflare.com';
+  return 'https://estates-berkeley-suitable-valentine.trycloudflare.com';
 };
 
 export default function App() {

@@ -1,118 +1,17 @@
 import os
 import io
 import uuid
-import pickle
-import numpy as np
-import cv2
 from PIL import Image
 from PIL.ExifTags import TAGS
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
 
-# Load Trained Image Forensics Model & Feature Scaler
-MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-MODEL_PATH = os.path.join(MODELS_DIR, "image_classifier.pkl")
-SCALER_PATH = os.path.join(MODELS_DIR, "image_scaler.pkl")
-
-IMAGE_MODEL = None
-IMAGE_SCALER = None
-
-try:
-    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
-        with open(MODEL_PATH, "rb") as f:
-            IMAGE_MODEL = pickle.load(f)
-        with open(SCALER_PATH, "rb") as f:
-            IMAGE_SCALER = pickle.load(f)
-        print("[SUCCESS] Image Forensics Classifier and Scaler loaded successfully.", flush=True)
-    else:
-        print("[WARNING] Image Classifier models not found in backend/models/", flush=True)
-except Exception as e:
-    print(f"[ERROR] Failed to load Image Classifier model: {e}", flush=True)
-
-def extract_image_features(file_bytes: bytes):
-    """
-    Extracts 13 multi-domain image forensic features:
-    1. ELA mean, std, max, and regional variance ratio (detects local splicing/deepfake inserts)
-    2. Spatial 2D FFT High/Low frequency energy ratio (detects GAN/Diffusion spectral artifacts)
-    3. Laplacian optical focus variance (detects AI hyper-smoothing vs optical depth-of-field)
-    4. Sensor PRNU high-pass residual noise std and mean (detects missing camera grain)
-    5. Color HSV Saturation mean & std (detects AI over-saturation/chroma anomalies)
-    6. Edge boundary gradient variance (detects cut-and-paste boundary artifacts)
-    """
-    pil_img = Image.open(io.BytesIO(file_bytes)).convert('RGB')
-    img_np = np.array(pil_img)
-    height, width, channels = img_np.shape
-
-    # 1. Error Level Analysis (ELA) at 90% JPEG quality
-    buf = io.BytesIO()
-    pil_img.save(buf, format='JPEG', quality=90)
-    buf.seek(0)
-    ela_img = Image.open(buf).convert('RGB')
-    ela_np = np.array(ela_img)
-
-    ela_diff = np.abs(img_np.astype(np.float32) - ela_np.astype(np.float32))
-    ela_mean = float(np.mean(ela_diff))
-    ela_std = float(np.std(ela_diff))
-    ela_max = float(np.max(ela_diff))
-
-    # Regional ELA Discrepancy (Center face region vs Outer background)
-    cy, cx = height // 2, width // 2
-    ry, rx = height // 4, width // 4
-    center_ela = np.mean(ela_diff[cy-ry:cy+ry, cx-rx:cx+rx]) if ry > 0 and rx > 0 else ela_mean
-    outer_ela = (ela_mean * (height * width) - center_ela * (4 * ry * rx)) / (max(1, height * width - 4 * ry * rx))
-    ela_regional_ratio = float(abs(center_ela - outer_ela) / (ela_mean + 1e-5))
-
-    # 2. 2D Spatial FFT Frequency Energy Ratio
-    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    f = np.fft.fft2(gray.astype(np.float32))
-    fshift = np.fft.fftshift(f)
-    magnitude_spectrum = np.log(np.abs(fshift) + 1e-8)
-
-    cy_f, cx_f = height // 2, width // 2
-    r = max(10, min(height, width) // 8)
-    y, x = np.ogrid[:height, :width]
-    mask_low = (x - cx_f)**2 + (y - cy_f)**2 <= r**2
-
-    low_freq_energy = float(np.mean(magnitude_spectrum[mask_low]))
-    high_freq_energy = float(np.mean(magnitude_spectrum[~mask_low]))
-    freq_ratio = float(high_freq_energy / (low_freq_energy + 1e-8))
-
-    # 3. Optical Focus & Edge Sharpness (Laplacian)
-    laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-
-    # 4. Sensor PRNU High-pass Residual Noise
-    blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    noise_residual = gray.astype(np.float32) - blur_gray.astype(np.float32)
-    noise_std = float(np.std(noise_residual))
-    noise_mean = float(np.mean(np.abs(noise_residual)))
-
-    # 5. HSV Saturation Distribution
-    hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
-    sat = hsv[:, :, 1].astype(np.float32)
-    sat_mean = float(np.mean(sat))
-    sat_std = float(np.std(sat))
-
-    # 6. Edge Gradient Variance
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-    grad_mag = np.sqrt(sobelx**2 + sobely**2)
-    grad_var = float(np.var(grad_mag))
-
-    features = [
-        ela_mean, ela_std, ela_max, ela_regional_ratio,
-        freq_ratio, high_freq_energy, low_freq_energy,
-        laplacian_var, noise_std, noise_mean,
-        sat_mean, sat_std, grad_var
-    ]
-    return np.array(features, dtype=np.float32), (height, width, channels)
-
 def process_image_file(file_bytes: bytes, filename: str, upload_dir: str):
     """
-    Validates uploaded image file, extracts metadata & EXIF parameters,
-    and performs model inference using the trained Image Forensics Multi-Feature Classifier.
+    Validates uploaded image file, extracts technical dimensions & EXIF metadata,
+    and returns explicit status indicating that a Deep CNN (PyTorch EfficientNet-B0 / ResNet50)
+    checkpoint trained on benchmark datasets (FaceForensics++ / DFDC) is required for reliable classification.
     """
     if not file_bytes or len(file_bytes) == 0:
         return {"error": "Uploaded image file is empty."}
@@ -156,76 +55,26 @@ def process_image_file(file_bytes: bytes, filename: str, upload_dir: str):
             except Exception:
                 pass
 
-            # Check if model is loaded
-            if IMAGE_MODEL is None or IMAGE_SCALER is None:
-                return {
-                    "status": "unavailable",
-                    "prediction": "Image verification model unavailable",
-                    "is_fake": False,
-                    "verdict_type": "UNAVAILABLE",
-                    "verdict": "UNAVAILABLE",
-                    "confidence": 0.0,
-                    "model_used": "Image Forensics Classifier Offline",
-                    "media_url": f"/uploads/{unique_name}",
-                    "image_metadata": metadata,
-                    "message": "Image verification model unavailable. No trained classifier checkpoint could be loaded."
-                }
-
-            # 1. Feature Extraction
-            features, shape = extract_image_features(file_bytes)
-            
-            # 2. Preprocessing / Scaling
-            features_scaled = IMAGE_SCALER.transform([features])
-
-            # 3. Model Inference & Raw Output Probabilities
-            probs = IMAGE_MODEL.predict_proba(features_scaled)[0]
-            # Class mapping: 0 = REAL, 1 = FAKE
-            prob_real = float(probs[0])
-            prob_fake = float(probs[1])
-
-            predicted_index = int(np.argmax(probs))
-            is_fake = bool(predicted_index == 1)
-            prediction = "FAKE" if is_fake else "REAL"
-            confidence = prob_fake if is_fake else prob_real
-
-            class_mapping = {0: "REAL", 1: "FAKE"}
-            model_name = "Image Forensics Multi-Feature Classifier (ELA + FFT Spectrum + PRNU Noise)"
-
-            # Console Log Raw Model Output
             print("\n==================================================", flush=True)
-            print("RAW MODEL OUTPUT:", flush=True)
+            print("IMAGE VERIFICATION DIAGNOSTIC AUDIT LOG:", flush=True)
             print(f"Filename: {filename}", flush=True)
-            print(f"Model Name: {model_name}", flush=True)
-            print(f"Input Shape: {shape}", flush=True)
-            print(f"Probabilities: REAL = {prob_real:.4f}, FAKE = {prob_fake:.4f}", flush=True)
-            print(f"Predicted Class Index: {predicted_index}", flush=True)
-            print(f"Class Mapping: {class_mapping}", flush=True)
-            print(f"Final Backend Prediction: {prediction}", flush=True)
+            print(f"Dimensions: {width}x{height}, Format: {format_name}, Mode: {mode}", flush=True)
+            print("Status: UNAVAILABLE / INCONCLUSIVE", flush=True)
+            print("Reason: Heuristic feature classifiers on synthetic noise do not generalize to real-world image manifolds.", flush=True)
+            print("Required Model: PyTorch Deep CNN (EfficientNet-B0 / ResNet50) trained on FaceForensics++ / DFDC.", flush=True)
             print("==================================================\n", flush=True)
 
-            explanation = (
-                f"Image analysis indicates potential digital manipulation or synthetic features (Confidence: {confidence*100:.1f}%)."
-                if is_fake else
-                f"Image analysis confirms authentic photographic noise patterns and compression consistency (Confidence: {confidence*100:.1f}%)."
-            )
-
             return {
-                "status": "success",
-                "prediction": prediction,
-                "is_fake": is_fake,
-                "verdict_type": prediction,
-                "verdict": "High Risk" if is_fake else "Low Risk",
-                "confidence": round(confidence, 4),
-                "raw_probabilities": {
-                    "REAL": round(prob_real, 4),
-                    "FAKE": round(prob_fake, 4)
-                },
-                "predicted_class_index": predicted_index,
-                "class_mapping": class_mapping,
-                "model_used": model_name,
+                "status": "unavailable",
+                "prediction": "Image verification model unavailable/inconclusive",
+                "is_fake": False,
+                "verdict_type": "UNAVAILABLE",
+                "verdict": "UNAVAILABLE",
+                "confidence": 0.0,
+                "model_used": "Deep CNN Checkpoint Needed (PyTorch EfficientNet-B0 / ResNet50)",
                 "media_url": f"/uploads/{unique_name}",
                 "image_metadata": metadata,
-                "explanation": explanation
+                "message": "Image verification model is currently unavailable/inconclusive. Reliable deepfake and manipulation detection requires a Deep Convolutional Neural Network (PyTorch EfficientNet-B0 / ResNet50) trained on facial deepfake benchmark datasets (FaceForensics++ / DFDC)."
             }
     except Exception as e:
         print(f"Image Processing Error: {e}", flush=True)
