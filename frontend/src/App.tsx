@@ -17,7 +17,7 @@ const getApiBaseUrl = () => {
       return 'http://127.0.0.1:8000';
     }
   }
-  return 'https://isa-man-imaging-cute.trycloudflare.com';
+  return 'https://mario-redeem-backup-texts.trycloudflare.com';
 };
 
 export default function App() {
