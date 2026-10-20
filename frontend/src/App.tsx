@@ -11,7 +11,10 @@ export const getApiBaseUrl = (): string => {
   // 1. User manual override stored in localStorage
   if (typeof window !== 'undefined') {
     const custom = window.localStorage.getItem('fakebuster_api_url');
-    if (custom && custom.trim()) {
+    // Clear stale expired tunnel URL if present
+    if (custom && custom.includes('pads-ecological-parameters-development')) {
+      window.localStorage.removeItem('fakebuster_api_url');
+    } else if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '');
     }
   }
@@ -28,7 +31,7 @@ export const getApiBaseUrl = (): string => {
     }
   }
   // 4. Default live backend tunnel / production service
-  return 'https://pads-ecological-parameters-development.trycloudflare.com';
+  return 'https://competent-miller-salmon-gerald.trycloudflare.com';
 };
 
 export default function App() {
