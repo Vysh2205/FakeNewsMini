@@ -193,28 +193,130 @@ def build_verification_report(text_content: str, source_url: str = None, media_p
     # 6. Evidence Retrieval
     evidence_data = search_evidence(primary_claim)
 
+    # 7. Multi-Source Evidence & Stance Synthesis
+    # A stylistic classifier cannot independently verify whether a real-world event occurred.
+    # We synthesize fact-checking records, live journalistic evidence, and linguistic patterns.
+    fact_results = fact_check_data.get("results", [])
+    evidence_items = evidence_data.get("evidence", [])
+    evidence_verdict = evidence_data.get("evidence_verdict", "NO_EVIDENCE")
+    contradicting_evidence = [e for e in evidence_items if e.get("category") == "Contradicting"]
+    supporting_evidence = [e for e in evidence_items if e.get("category") == "Supporting"]
+
+    # Baseline from AI NLP
+    verdict_type = ai_res.get("verdict_type", "UNCERTAIN")
+    verdict = ai_res.get("verdict", "Moderate Risk")
+    is_fake = ai_res.get("is_fake", False)
+    confidence = ai_res.get("confidence", 0.50)
+    overall_risk = ai_res.get("overall_risk", 50)
+    explanation = ai_res.get("explanation", "")
+    prediction_str = ai_res.get("prediction", "Uncertain")
+
+    # Priority 1: Verified External Fact-Check Database Match
+    if fact_results:
+        first_check = fact_results[0]
+        rating_lower = first_check.get("verdict", "").lower()
+        is_debunked = any(w in rating_lower for w in ["false", "fake", "incorrect", "misleading", "pants on fire", "hoax"])
+        is_verified_true = any(w in rating_lower for w in ["true", "correct", "accurate", "verified"])
+
+        if is_debunked:
+            verdict_type = "FAKE"
+            verdict = "High Risk"
+            is_fake = True
+            confidence = 0.95
+            overall_risk = 88
+            prediction_str = "Fake"
+            explanation = (
+                f"External fact-checking organizations ({first_check.get('organization', 'Fact Checkers')}) "
+                f"have evaluated this claim and verified it as {first_check.get('verdict', 'False')}: {first_check.get('summary', primary_claim)}."
+            )
+        elif is_verified_true:
+            verdict_type = "REAL"
+            verdict = "Low Risk"
+            is_fake = False
+            confidence = 0.92
+            overall_risk = 12
+            prediction_str = "Real"
+            explanation = (
+                f"External fact-checking organizations ({first_check.get('organization', 'Fact Checkers')}) "
+                f"have verified this claim as factual: {first_check.get('summary', primary_claim)}."
+            )
+
+    # Priority 2: Journalistic News & Biographical Reference Evidence
+    elif evidence_verdict == "CONTRADICTED" or len(contradicting_evidence) >= 1:
+        verdict_type = "FAKE"
+        verdict = "High Risk"
+        is_fake = True
+        confidence = evidence_data.get("evidence_confidence", 0.88)
+        overall_risk = int(min(95, max(75, 50 + confidence * 40)))
+        prediction_str = "Fake"
+        top_src = contradicting_evidence[0].get("source", "Major News")
+        top_title = contradicting_evidence[0].get("title", "")
+        explanation = (
+            f"Reputable news sources and reference archives contradict this claim ({top_src}: '{top_title}'). "
+            f"Independent journalistic reporting flags the claim as false, misleading, or an unverified rumor."
+        )
+
+    elif evidence_verdict == "CONFIRMED" or len(supporting_evidence) >= 1:
+        verdict_type = "REAL"
+        verdict = "Low Risk"
+        is_fake = False
+        confidence = evidence_data.get("evidence_confidence", 0.85)
+        overall_risk = int(max(8, min(25, (1.0 - confidence) * 60)))
+        prediction_str = "Real"
+        top_src = supporting_evidence[0].get("source", "News Agencies")
+        top_title = supporting_evidence[0].get("title", "")
+        explanation = (
+            f"Corroborating reports from reputable news outlets confirm this event ({top_src}: '{top_title}'). "
+            f"Independent sources corroborate the core details of the claim."
+        )
+
+    # Priority 3: No External Evidence or Inconclusive Web Results
+    else:
+        # Factual claims cannot be declared REAL without independent external corroboration.
+        if is_fake and confidence >= 0.75 and ai_res.get("feature_coverage", 0) > 0:
+            verdict_type = "FAKE"
+            verdict = "High Risk"
+            is_fake = True
+            prediction_str = "Fake"
+            explanation = (
+                f"Linguistic and stylistic analysis detected indicators characteristic of sensationalized or fabricated text. "
+                f"However, no independent journalistic evidence was found to verify or contradict the factual details."
+            )
+        else:
+            verdict_type = "UNCERTAIN"
+            verdict = "Moderate Risk"
+            is_fake = False
+            confidence = 0.50
+            overall_risk = 45
+            prediction_str = "Uncertain"
+            explanation = (
+                "UNCERTAIN – Lacks corroborating evidence from verified news sources or fact-checkers. "
+                "A stylistic classifier cannot independently verify whether a real-world event occurred."
+            )
+
     # Assemble report
     report = {
         "verification_id": verification_id,
         "content_type": content_type,
-        "verdict_type": ai_res["verdict_type"],  # REAL, FAKE, UNCERTAIN
-        "verdict": ai_res["verdict"],            # High Risk, Moderate Risk, Low Risk
-        "is_fake": ai_res["is_fake"],
-        "confidence": ai_res["confidence"],
-        "overall_risk": ai_res["overall_risk"],
-        "clickbait": ai_res["clickbait"],
-        "source_reliability": ai_res["source_reliability"],
-        "emotional_language": ai_res["emotional_language"],
-        "evidence_quality": ai_res["evidence_quality"],
-        "explanation": ai_res["explanation"],
-        "keywords": ai_res["keywords"],
+        "verdict_type": verdict_type,  # REAL, FAKE, UNCERTAIN
+        "verdict": verdict,            # High Risk, Moderate Risk, Low Risk
+        "prediction": prediction_str,  # Real, Fake, Uncertain
+        "is_fake": is_fake,
+        "confidence": confidence,
+        "overall_risk": overall_risk,
+        "clickbait": ai_res.get("clickbait", 20),
+        "source_reliability": ai_res.get("source_reliability", 50),
+        "emotional_language": ai_res.get("emotional_language", 20),
+        "evidence_quality": 85 if (evidence_verdict in ["CONFIRMED", "CONTRADICTED"] or fact_results) else 20,
+        "explanation": explanation,
+        "keywords": ai_res.get("keywords", []),
         "detected_language": lang_info["detected_language"],
         "was_translated": lang_info["was_translated"],
         "translated_text": lang_info["translated_text"] if lang_info["was_translated"] else None,
         "claims": claims,
-        "fact_checks": fact_check_data.get("results", []),
+        "fact_checks": fact_results,
         "fact_check_message": fact_check_data.get("message", "No matching fact-check found."),
-        "evidence": evidence_data.get("evidence", []),
+        "evidence": evidence_items,
         "evidence_message": evidence_data.get("message", "No relevant evidence found."),
         "source_info": source_info,
         "media_url": media_path,
@@ -231,13 +333,13 @@ def build_verification_report(text_content: str, source_url: str = None, media_p
                 content=text_content[:5000],
                 title=primary_claim[:200],
                 source_domain=source_info["domain"],
-                verdict=ai_res["verdict_type"],
-                is_fake=ai_res["is_fake"],
-                confidence_score=ai_res["confidence"],
-                overall_risk=ai_res["overall_risk"],
+                verdict=verdict_type,
+                is_fake=is_fake,
+                confidence_score=confidence,
+                overall_risk=overall_risk,
                 language=lang_info["detected_language"],
                 media_path=media_path,
-                explanation=ai_res["explanation"],
+                explanation=explanation,
                 details_json=json.dumps(report)
             )
             db.add(history_record)

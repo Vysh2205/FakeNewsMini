@@ -52,6 +52,7 @@ def load_ml_assets():
 def predict_fake_news(text: str):
     """
     Performs real-time fake news inference using the trained TF-IDF + Classifier model.
+    Evaluates linguistic and stylistic patterns. Recognizes when text has no vocabulary coverage.
     """
     try:
         model, vectorizer, info = load_ml_assets()
@@ -64,7 +65,8 @@ def predict_fake_news(text: str):
                 "is_fake": False,
                 "confidence": 0.50,
                 "model_used": info.get("best_model", "Trained ML Model"),
-                "all_metrics": info.get("all_metrics", {})
+                "all_metrics": info.get("all_metrics", {}),
+                "feature_coverage": 0
             }
 
         # Check for explicit debunking or viral misinformation indicators
@@ -72,31 +74,65 @@ def predict_fake_news(text: str):
 
         # Vectorize text using saved TF-IDF vectorizer
         tfidf_feat = vectorizer.transform([processed])
+        model_name = info.get("best_model", type(model).__name__)
+        feature_coverage = int(tfidf_feat.nnz)
+
+        # If zero vocabulary features matched, a stylistic model has no basis to classify
+        if feature_coverage == 0:
+            if has_debunk_keyword:
+                return {
+                    "prediction": "Fake",
+                    "is_fake": True,
+                    "confidence": 0.88,
+                    "model_used": model_name,
+                    "all_metrics": info.get("all_metrics", {}),
+                    "feature_coverage": 0
+                }
+            return {
+                "prediction": "Uncertain",
+                "is_fake": False,
+                "confidence": 0.50,
+                "model_used": model_name,
+                "all_metrics": info.get("all_metrics", {}),
+                "feature_coverage": 0
+            }
+
         pred_label = int(model.predict(tfidf_feat)[0])
 
         # Confidence calculation
-        confidence = 0.85
+        confidence = 0.50
+        is_tied = False
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(tfidf_feat)[0]
             confidence = float(np.max(probs))
+            # If the two probabilities are virtually equal, the classifier is uncertain
+            if abs(probs[0] - probs[1]) < 0.15:
+                is_tied = True
         elif hasattr(model, "decision_function"):
             df_val = float(model.decision_function(tfidf_feat)[0])
             confidence = round(1.0 / (1.0 + float(np.exp(-abs(df_val)))), 4)
+            if abs(df_val) < 0.2:
+                is_tied = True
 
-        confidence = round(max(0.70, min(0.99, confidence)), 4)
+        confidence = round(min(0.99, max(0.50, confidence)), 4)
         is_fake = (pred_label == 1) or has_debunk_keyword
         if has_debunk_keyword:
             confidence = max(confidence, 0.88)
 
-        prediction_str = "Fake" if is_fake else "Real"
-        model_name = info.get("best_model", type(model).__name__)
+        if is_tied and not has_debunk_keyword:
+            prediction_str = "Uncertain"
+            is_fake = False
+            confidence = 0.50
+        else:
+            prediction_str = "Fake" if is_fake else "Real"
 
         return {
             "prediction": prediction_str,
             "is_fake": is_fake,
             "confidence": confidence,
             "model_used": model_name,
-            "all_metrics": info.get("all_metrics", {})
+            "all_metrics": info.get("all_metrics", {}),
+            "feature_coverage": feature_coverage
         }
     except Exception as e:
         print(f"ML Prediction Error: {e}")

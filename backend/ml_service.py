@@ -75,9 +75,10 @@ def analyze_text_with_ai(text: str):
     return {
         "is_fake": is_fake,
         "confidence": confidence,
-        "prediction": "Fake" if is_fake else "Real",
+        "prediction": "Uncertain" if verdict_type == "UNCERTAIN" else ("Fake" if is_fake else "Real"),
         "model_used": model_used,
         "all_metrics": all_metrics,
+        "feature_coverage": ml_result.get("feature_coverage", 0) if ml_result else 0,
         "keywords": keywords,
         "explanation": explanation,
         "overall_risk": overall_risk,
