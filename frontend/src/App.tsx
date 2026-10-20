@@ -27,8 +27,8 @@ export const getApiBaseUrl = (): string => {
       return 'http://127.0.0.1:8000';
     }
   }
-  // 4. Default deployed production backend
-  return 'https://fakebuster-backend.onrender.com';
+  // 4. Default live backend tunnel / production service
+  return 'https://pads-ecological-parameters-development.trycloudflare.com';
 };
 
 export default function App() {
