@@ -72,8 +72,10 @@ def load_pytorch_model():
         
     possible_paths = [
         os.path.join(os.path.dirname(__file__), "..", "models", "deepfake_cnn.pt"),
+        os.path.join(os.path.dirname(__file__), "..", "backend", "models", "deepfake_cnn.pt"),
         os.path.join(os.getcwd(), "models", "deepfake_cnn.pt"),
-        os.path.join(os.getcwd(), "backend", "models", "deepfake_cnn.pt")
+        os.path.join(os.getcwd(), "backend", "models", "deepfake_cnn.pt"),
+        os.path.join(os.getcwd(), "backend", "backend", "models", "deepfake_cnn.pt")
     ]
     
     checkpoint_path = None

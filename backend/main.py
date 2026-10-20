@@ -1,4 +1,11 @@
+import sys
 import os
+
+# Ensure backend directory is in sys.path whether executed as 'main:app' or 'backend.main:app'
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 import uuid
 import json
 from datetime import datetime
@@ -7,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 try:
     from scraper import scrape_article
@@ -34,9 +42,6 @@ except ImportError:
     from backend.services.image_verification import process_image_file
     from backend.services.video_verification import process_video_file
     from backend.services.audio_verification import process_audio_file
-
-
-from sqlalchemy import text
 
 # Create DB tables if missing & auto-migrate SQLite columns
 models.Base.metadata.create_all(bind=engine)
@@ -72,13 +77,83 @@ allowed_origins = [
     "https://fakenewsmini-fakebuster.surge.sh",
 ]
 
+frontend_env = os.getenv("FRONTEND_URL")
+if frontend_env:
+    for origin in frontend_env.split(","):
+        clean_origin = origin.strip().rstrip("/")
+        if clean_origin and clean_origin not in allowed_origins:
+            allowed_origins.append(clean_origin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.surge\.sh|https://.*\.onrender\.com|https://.*\.vercel\.app|https://.*\.netlify\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Root Endpoint
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "FakeBuster AI Multimodal Verification API",
+        "version": "2.1.0",
+        "health": "/health",
+        "docs": "/docs"
+    }
+
+# Comprehensive Health-Check Endpoint
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    db_status = "connected"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+
+    text_model_ready = False
+    try:
+        from ml.predict import load_ml_assets
+        load_ml_assets()
+        text_model_ready = True
+    except Exception:
+        text_model_ready = False
+
+    image_model_ready = False
+    try:
+        from services.image_verification import load_pytorch_model
+        image_model_ready = load_pytorch_model() is not None
+    except Exception:
+        image_model_ready = False
+
+    video_model_ready = False
+    try:
+        from services.video_verification import load_video_pytorch_model
+        video_model_ready = load_video_pytorch_model() is not None
+    except Exception:
+        video_model_ready = False
+
+    audio_model_ready = False
+    try:
+        from services.audio_verification import load_audio_assets
+        load_audio_assets()
+        audio_model_ready = True
+    except Exception:
+        audio_model_ready = False
+
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "timestamp": datetime.utcnow().isoformat(),
+        "database": db_status,
+        "models": {
+            "text_verification": "operational" if text_model_ready else "heuristics_only",
+            "image_verification": "deep_cnn_active" if image_model_ready else "forensic_signals_active",
+            "video_verification": "frame_cnn_active" if video_model_ready else "opencv_keyframes_active",
+            "audio_verification": "operational" if audio_model_ready else "unavailable"
+        }
+    }
 
 # Upload directory setup
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")

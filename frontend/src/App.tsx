@@ -7,17 +7,28 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+export const getApiBaseUrl = (): string => {
+  // 1. User manual override stored in localStorage
+  if (typeof window !== 'undefined') {
+    const custom = window.localStorage.getItem('fakebuster_api_url');
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/+$/, '');
+    }
   }
+  // 2. Standard Vite environment variables
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  // 3. Localhost development fallback
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://127.0.0.1:8000';
     }
   }
-  return 'https://amino-replica-calculated-rogers.trycloudflare.com';
+  // 4. Default deployed production backend
+  return 'https://fakebuster-backend.onrender.com';
 };
 
 export default function App() {
@@ -31,6 +42,59 @@ export default function App() {
   const [stats, setStats] = useState<any>(null);
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
+  const [backendHealth, setBackendHealth] = useState<any>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [customApiInput, setCustomApiInput] = useState('');
+
+  const checkHealth = async () => {
+    setBackendStatus('checking');
+    try {
+      const baseUrl = getApiBaseUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const res = await fetch(`${baseUrl}/health`, {
+        signal: controller.signal,
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        setBackendStatus('connected');
+        setBackendHealth(data);
+      } else {
+        setBackendStatus('offline');
+      }
+    } catch (e) {
+      setBackendStatus('offline');
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+  const saveCustomApiUrl = (url: string) => {
+    if (typeof window !== 'undefined') {
+      const trimmed = url.trim().replace(/\/+$/, '');
+      if (trimmed) {
+        window.localStorage.setItem('fakebuster_api_url', trimmed);
+      } else {
+        window.localStorage.removeItem('fakebuster_api_url');
+      }
+    }
+    setShowConfigModal(false);
+    checkHealth();
+  };
+
+  const resetApiUrl = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('fakebuster_api_url');
+    }
+    setShowConfigModal(false);
+    checkHealth();
+  };
 
   const fetchStats = async () => {
     try {
@@ -122,12 +186,13 @@ export default function App() {
       setResult(data);
     } catch (error: any) {
       console.error(error);
+      const baseUrl = getApiBaseUrl();
       const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
       if (error.message === "Failed to fetch" || error.name === "TypeError") {
         if (isLocalHost) {
-          setErrorMsg("Unable to connect to the verification server. Please check that the Python FastAPI backend is running at http://localhost:8000.");
+          setErrorMsg(`Unable to connect to the verification server at ${baseUrl}. Please check that the Python FastAPI backend is running (python -m uvicorn backend.main:app --port 8000).`);
         } else {
-          setErrorMsg("Verification service is currently unavailable. The FastAPI backend must be deployed to a cloud server (e.g. Render or Railway) and configured as VITE_API_URL.");
+          setErrorMsg(`Backend engine is unreachable at ${baseUrl}. If deployed on Render free tier, the backend may be waking up from cold sleep (takes ~30-50s). Please wait a moment and try again, or click 'Configure API' above to update the URL.`);
         }
       } else {
         setErrorMsg(error.message || "Failed to connect to the backend server.");
@@ -169,7 +234,72 @@ export default function App() {
           <p className="text-zinc-400 text-base md:text-lg max-w-2xl mx-auto">
             Real-time AI verification platform for news text, URLs, images, and videos with multilingual detection and fact-checking integration.
           </p>
+
+          {/* Live Backend Connection Status Pill */}
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-md transition-all ${
+              backendStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+              backendStatus === 'checking' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+              'bg-rose-500/10 border-rose-500/30 text-rose-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${
+                backendStatus === 'connected' ? 'bg-emerald-400 animate-pulse' :
+                backendStatus === 'checking' ? 'bg-amber-400 animate-ping' :
+                'bg-rose-400'
+              }`} />
+              <span>
+                {backendStatus === 'connected' ? 'Backend Engine: Online' :
+                 backendStatus === 'checking' ? 'Connecting to Backend Engine...' :
+                 'Backend Engine: Offline / Sleeping'}
+              </span>
+              <button 
+                onClick={checkHealth}
+                title="Refresh Backend Connection"
+                className="ml-1 opacity-70 hover:opacity-100 transition-all text-xs cursor-pointer"
+              >
+                ↻
+              </button>
+              <button 
+                onClick={() => { setCustomApiInput(getApiBaseUrl()); setShowConfigModal(true); }}
+                className="ml-1 text-[11px] underline opacity-80 hover:opacity-100 cursor-pointer"
+              >
+                Configure API
+              </button>
+            </div>
+          </div>
         </motion.div>
+
+        {/* Offline Alert Banner */}
+        {backendStatus === 'offline' && (
+          <div className="bg-rose-950/40 border border-rose-500/30 p-4 rounded-xl text-xs text-rose-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="text-rose-400 shrink-0 mt-0.5" size={18} />
+              <div>
+                <p className="font-bold text-rose-300">
+                  Backend Engine Unreachable at: <code className="bg-black/40 px-2 py-0.5 rounded text-amber-300 font-mono text-[11px]">{getApiBaseUrl()}</code>
+                </p>
+                <p className="text-zinc-400 text-[11px] mt-0.5">
+                  If deployed on Render free tier, the backend spins down after inactivity and takes ~30–50s to wake up.
+                  If you are running the backend locally or on a different server, click "Configure API" to set your URL.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+              <button 
+                onClick={checkHealth}
+                className="bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 px-3 py-1.5 rounded-lg font-bold text-xs transition"
+              >
+                Retry Connection
+              </button>
+              <button 
+                onClick={() => { setCustomApiInput(getApiBaseUrl()); setShowConfigModal(true); }}
+                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg font-bold text-xs transition"
+              >
+                Configure API
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Primary Navigation Tabs */}
         <div className="flex flex-wrap justify-center gap-2 md:gap-3 bg-zinc-950 p-2 rounded-2xl border border-zinc-800/80 shadow-lg">
@@ -816,6 +946,69 @@ export default function App() {
               </div>
             </div>
           </motion.div>
+        )}
+
+        {/* API Endpoint Configuration Modal */}
+        {showConfigModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl relative">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  ⚙️ Backend API Configuration
+                </h3>
+                <button onClick={() => setShowConfigModal(false)} className="text-zinc-400 hover:text-white text-lg font-bold">✕</button>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Configure the FastAPI backend server URL. This setting is saved in your browser and takes immediate effect without rebuilding.
+              </p>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-zinc-300 block">FastAPI Base URL</label>
+                <input 
+                  type="url" 
+                  value={customApiInput}
+                  onChange={(e) => setCustomApiInput(e.target.value)}
+                  placeholder="https://fakebuster-backend.onrender.com or http://127.0.0.1:8000"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px] text-zinc-400 pt-1">
+                <span className="text-zinc-500">Quick Presets:</span>
+                <button onClick={() => setCustomApiInput('http://127.0.0.1:8000')} className="hover:text-amber-400 underline">Localhost (8000)</button>
+                <span>•</span>
+                <button onClick={() => setCustomApiInput('https://fakebuster-backend.onrender.com')} className="hover:text-amber-400 underline">Render Cloud</button>
+              </div>
+              {backendHealth && (
+                <div className="bg-zinc-950/80 p-3 rounded-xl border border-zinc-800/80 text-[11px] space-y-1 font-mono text-zinc-300">
+                  <div className="text-amber-400 font-bold">Live Health Status: {backendHealth.status}</div>
+                  <div>Database: {backendHealth.database}</div>
+                  <div>Text: {backendHealth.models?.text_verification} | Image: {backendHealth.models?.image_verification}</div>
+                  <div>Video: {backendHealth.models?.video_verification} | Audio: {backendHealth.models?.audio_verification}</div>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
+                <button 
+                  onClick={resetApiUrl}
+                  className="text-xs text-zinc-400 hover:text-rose-400 transition underline cursor-pointer"
+                >
+                  Reset to Default
+                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setShowConfigModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => saveCustomApiUrl(customApiInput)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 transition cursor-pointer"
+                  >
+                    Save & Reconnect
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
 
       </div>

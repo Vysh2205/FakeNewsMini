@@ -4,15 +4,23 @@ services:
     env: python
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.12
+        value: 3.11.9
+      - key: FRONTEND_URL
+        value: https://fakenewsmini-fakebuster.surge.sh,https://fakebuster-frontend.onrender.com
 
   - type: web
     name: fakebuster-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://fakebuster-backend.onrender.com
+      - key: VITE_API_URL
+        value: https://fakebuster-backend.onrender.com
     routes:
       - type: rewrite
         source: /*

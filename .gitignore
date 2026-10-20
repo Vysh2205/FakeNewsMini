@@ -7,3 +7,5 @@ venv/
 cloudflared.exe
 backend/uploads/*
 !backend/uploads/.gitkeep
+scratch/
+uploads/

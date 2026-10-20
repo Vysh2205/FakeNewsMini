@@ -1,7 +1,17 @@
 import os
+import sys
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
+
+try:
+    from models import Base
+except ImportError:
+    from backend.models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fakenews.db")
 
