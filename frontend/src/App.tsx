@@ -11,8 +11,8 @@ export const getApiBaseUrl = (): string => {
   // 1. User manual override stored in localStorage
   if (typeof window !== 'undefined') {
     const custom = window.localStorage.getItem('fakebuster_api_url');
-    // Clear stale expired tunnel URL if present
-    if (custom && custom.includes('pads-ecological-parameters-development')) {
+    // Clear stale expired tunnel URLs if present
+    if (custom && (custom.includes('pads-ecological-parameters') || custom.includes('competent-miller-salmon'))) {
       window.localStorage.removeItem('fakebuster_api_url');
     } else if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '');
@@ -31,7 +31,7 @@ export const getApiBaseUrl = (): string => {
     }
   }
   // 4. Default live backend tunnel / production service
-  return 'https://competent-miller-salmon-gerald.trycloudflare.com';
+  return 'https://correspondence-psi-acquired-origins.trycloudflare.com';
 };
 
 export default function App() {
