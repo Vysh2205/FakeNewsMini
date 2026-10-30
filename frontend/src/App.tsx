@@ -10,10 +10,11 @@ import { jsPDF } from 'jspdf';
 export const getApiBaseUrl = (): string => {
   // 1. User manual override stored in localStorage
   if (typeof window !== 'undefined') {
-    const custom = window.localStorage.getItem('fakebuster_api_url');
+    const custom = window.localStorage.getItem('fakebuster_api_url') || window.localStorage.getItem('fakebuster_active_url');
     // Clear stale expired tunnel URLs if present
-    if (custom && (custom.includes('trycloudflare.com') && !custom.includes('flashing-roommates-westminster-universe'))) {
+    if (custom && custom.includes('trycloudflare.com') && !custom.includes('flashing-roommates-westminster-universe')) {
       window.localStorage.removeItem('fakebuster_api_url');
+      window.localStorage.removeItem('fakebuster_active_url');
     } else if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '');
     }
@@ -53,25 +54,38 @@ export default function App() {
 
   const checkHealth = async () => {
     setBackendStatus('checking');
-    try {
-      const baseUrl = getApiBaseUrl();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
-      const res = await fetch(`${baseUrl}/health`, {
-        signal: controller.signal,
-        headers: { 'Bypass-Tunnel-Reminder': 'true' }
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        setBackendStatus('connected');
-        setBackendHealth(data);
-      } else {
-        setBackendStatus('offline');
+    const primary = getApiBaseUrl();
+    const candidateUrls = [
+      primary,
+      'https://flashing-roommates-westminster-universe.trycloudflare.com',
+      'https://fakebuster-backend.onrender.com',
+      'http://127.0.0.1:8000'
+    ];
+    const uniqueCandidates = Array.from(new Set(candidateUrls.filter(Boolean)));
+
+    for (const url of uniqueCandidates) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`${url}/health`, {
+          signal: controller.signal,
+          headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (url !== primary && typeof window !== 'undefined' && !window.localStorage.getItem('fakebuster_api_url')) {
+            window.localStorage.setItem('fakebuster_active_url', url);
+          }
+          setBackendStatus('connected');
+          setBackendHealth(data);
+          return;
+        }
+      } catch (e) {
+        // Continue probing next backend candidate
       }
-    } catch (e) {
-      setBackendStatus('offline');
     }
+    setBackendStatus('offline');
   };
 
   useEffect(() => {
@@ -94,6 +108,7 @@ export default function App() {
   const resetApiUrl = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('fakebuster_api_url');
+      window.localStorage.removeItem('fakebuster_active_url');
     }
     setShowConfigModal(false);
     checkHealth();
