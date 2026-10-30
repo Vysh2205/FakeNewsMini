@@ -12,7 +12,7 @@ export const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
     const custom = window.localStorage.getItem('fakebuster_api_url');
     // Clear stale expired tunnel URLs if present
-    if (custom && (custom.includes('pads-ecological-parameters') || custom.includes('competent-miller-salmon'))) {
+    if (custom && (custom.includes('trycloudflare.com') && !custom.includes('flashing-roommates-westminster-universe'))) {
       window.localStorage.removeItem('fakebuster_api_url');
     } else if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '');
@@ -31,7 +31,7 @@ export const getApiBaseUrl = (): string => {
     }
   }
   // 4. Default live backend tunnel / production service
-  return 'https://correspondence-psi-acquired-origins.trycloudflare.com';
+  return 'https://flashing-roommates-westminster-universe.trycloudflare.com';
 };
 
 export default function App() {
